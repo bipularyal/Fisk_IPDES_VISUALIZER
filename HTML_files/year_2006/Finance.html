@@ -1,0 +1,761 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>
+	Reported Data
+</title>
+<style>
+        .page-header {
+            font-size: 16px;
+        }
+
+        @media print
+        {    
+            .page-header {
+                display: none;
+            }
+
+            .page-header-wrapper {
+                display: none;
+            }
+        }
+
+        select {
+            padding: 4px 4px;
+            font-size: 15px;
+            border-radius: 6px;
+        }
+
+        .mr-2 {
+            margin-right: 0.5em;
+        }
+
+        .mr-4 {
+            margin-right: 1em;
+        }
+
+        .mr-8 {
+            margin-right: 2em;
+        }
+
+        .btn {
+            border: 1px solid #999;
+            padding: 1px 10px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .loading-data {
+            margin: 20px auto 0 auto;
+            width: 150px;
+            text-align: center;
+        }
+
+        #top {
+            position: relative;
+            top: -100px;
+        }
+
+        .top {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            padding: 5px 5px;
+            background-color: #eee;
+            text-align: center;
+        }
+
+        .top a:link,
+        .top a:visited,
+        .top a:hover {
+            text-decoration: none;
+            color: #333;
+        }
+
+        .no-survey-found {
+            background-color: #f7f7f7;
+            padding: 20px 20px;
+            font-size: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .no-survey-found.show {
+            display: block;
+        }
+
+        #survey_content {
+            border:0px solid red;
+            margin-top: 20px;
+            padding-top: 10px;
+        }
+        .note-message {
+            padding: 8px 12px;
+            background-color: #fcfbec;
+            border:1px solid #c6c4a5;
+            border-radius:4px;
+            display:none;
+            font-size:13px;
+        }
+        .note-message.show {
+            display: block;
+        }
+    </style>
+<script src="scripts/jquery-3.6.0.js" type="text/javascript"></script>
+<script>
+        let year = 2006;
+        let prevYear = 2006;
+        let unitId = 220181;
+        let surveyNumber = 6;
+
+        function removeFacsimileStyleFiles() {
+            $('[data-year="2020"]').remove();
+            $('[data-year="2006"]').remove();
+            $('[data-year="2005"]').remove();
+            $('[data-year="20002004"]').remove();
+        }
+
+        function addFacsimileStyleFile() {
+            // update year
+            if (year >= 2020) {
+                addCssFile('facsimile/assets/css/styles.css', '2020');
+            } else if (year >= 2000 && year <= 2004) {
+                addCssFile('styles/fm_style00_04.css', '20002004');
+                addCssFile('styles/fm_style00_04_fixes.css', '20002004');
+            } else if (year === 2005) {
+                addCssFile('styles/fm_style05.css', '2005');
+            }
+            else if (year > 2005) {
+                addCssFile('styles/facsimile.css', '2006');
+            }
+        }
+
+        function addCssFile(fileName, dataYearAttr) {
+            var cssRef = document.createElement("link");
+            cssRef.setAttribute("rel", "stylesheet");
+            cssRef.setAttribute("type", "text/css");
+            cssRef.setAttribute("href", fileName);
+            cssRef.setAttribute('data-year', dataYearAttr);
+            document.getElementsByTagName("head")[0].appendChild(cssRef)
+        }
+
+        function loadContent() {
+            $('#survey_content').html('<div class="loading-data"><h2>Loading data...</h2></div>');
+            $('.no-survey-found').removeClass('show');
+            $('#data-revised-note').removeClass('show');
+            $('#data-not-revised-note').removeClass('show');
+           
+            $.ajax({
+                url: 'FacsimileView.aspx?action=data&year=' + year + '&prevYear=' + prevYear + '&unitId=' + unitId + '&surveyNumber=' + surveyNumber,
+                type: "GET",
+                cache: false,
+                success: function (data) {
+                    prevYear = year;
+                    var json = JSON.parse(data);
+                    $('#survey_content').html(json.SurveyHtml);
+
+                    //***************
+                    $('#data-not-revised-note').removeClass('show');
+                    $('#latest-year-data-not-revised-note').removeClass('show');
+                    $('#pre-2014-data-not-revised-note').removeClass('show');
+                    $('#data-revised-note').removeClass('show');
+
+                    // Message about revised data:
+                    if (year >= 2022 ) {
+                        $('#latest-year-data-not-revised-note').addClass('show');
+                    }
+                    else if (year >= 2014 && year<=2021) {
+
+                        if (json.DataRevised === true)
+                            $('#data-revised-note').addClass('show');
+                        else //if (json.DataRevised === false)
+                            $('#data-not-revised-note').addClass('show');
+                    }
+                    else
+                        $('#pre-2014-data-not-revised-note').addClass('show');
+
+
+                    const container = document.getElementById('survey_content');
+
+                    // Get all buttons within the container
+                    const buttons = container.querySelectorAll('button');
+
+                    // Loop through each button and disable it
+                    buttons.forEach(button => {
+                        button.disabled = true;
+                    });
+
+
+                    if (json.Surveys) {
+                        // we need to create new values in Survey dropdown
+                        let dropdown = $('#select-surveys')[0];
+                        // first remove all elements
+                        while (dropdown.options.length > 0)
+                            dropdown.remove(0);
+
+                        let surveyNumbers = Object.keys(json.Surveys);
+                        let surveyNumberExistsInDifferentYear = false;
+                        for (let i = 0; i < surveyNumbers.length; i++) {
+                            let opt = document.createElement('option');
+                            opt.value = surveyNumbers[i];
+                            if (surveyNumbers[i] == surveyNumber) {
+                                surveyNumberExistsInDifferentYear = true;
+                                opt.selected = true;
+                            }
+                            opt.innerHTML = json.Surveys[surveyNumbers[i]];
+                            dropdown.appendChild(opt);
+                        }
+                        // if survey does not exists, add empty <option>
+                        if (surveyNumberExistsInDifferentYear == false) {
+                            let opt = document.createElement('option');
+                            opt.value = '';
+                            opt.innerHTML = 'Select a survey';
+                            opt.selected = true;
+                            dropdown.add(opt, dropdown.options[0]);
+                            $('.no-survey-found').addClass('show');
+                            $('#data-not-revised-note').removeClass('show');
+                        }                       
+                            
+                    }
+
+                    // Update url to reflect selected year/survey
+                    //let newUrl = new URL(window.location.href);
+                    //let params = new URLSearchParams(newUrl.search);
+                    
+                   
+                    //params.set('year', year);
+                    //params.set('surveyNumber', surveyNumber)
+
+
+                    let searchParams = new URLSearchParams(window.location.search);
+
+                    searchParams.delete("surveynumber");
+                    searchParams.delete("year");
+                    searchParams.set('year', year);
+                    searchParams.set('surveyNumber', surveyNumber)
+
+                    if (window.history.replaceState) {
+                        const url = window.location.protocol
+                            + "//" + window.location.host
+                            + window.location.pathname
+                            + "?"
+                            + searchParams.toString();
+
+                        window.history.replaceState({
+                            path: url
+                        }, "", url)
+                    }
+
+
+                },
+                error: function (xhr, err) {
+                    console.log("Status: " + xhr.status + "\nResponse Text:" + xhr.responseText);
+                }
+            });
+        }
+
+        function selectSurvey(ev) {
+            surveyNumber = ev.target.value;
+            loadContent();
+        }
+
+        function selectYear(ev) {
+            year = +ev.target.value;
+            loadContent();
+
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+        }
+
+        function updateURLParameter(url, param, paramVal) {
+            let TheAnchor = null;
+            let newAdditionalURL = "";
+            let tempArray = url.split("?");
+            let baseURL = tempArray[0];
+            let additionalURL = tempArray[1];
+            let temp = "";
+
+            if (additionalURL) {
+                var tmpAnchor = additionalURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+                if (TheAnchor)
+                    additionalURL = TheParams;
+
+                tempArray = additionalURL.split("&");
+
+                for (var i = 0; i < tempArray.length; i++) {
+                    if (tempArray[i].split('=')[0] != param) {
+                        newAdditionalURL += temp + tempArray[i];
+                        temp = "&";
+                    }
+                }
+            }
+            else {
+                var tmpAnchor = baseURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+
+                if (TheParams)
+                    baseURL = TheParams;
+            }
+
+            if (TheAnchor)
+                paramVal += "#" + TheAnchor;
+
+            var rows_txt = temp + "" + param + "=" + paramVal;
+            return baseURL + "?" + newAdditionalURL + rows_txt;
+        }
+
+        
+
+        $(document).ready(function () {
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+            loadContent();
+        });
+
+        function printPage() {
+            window.print();
+        }
+    </script>
+<link data-year="2006" href="styles/facsimile.css" rel="stylesheet" type="text/css"/></head>
+<body>
+<div class="page-header-wrapper" style="background-color: #eee; padding: 18px 6px;">
+<div class="page-header" style="width: 90%; margin: 0 auto;">
+<div style="display: flex; align-items: center!important;">
+<div class="mr-4">Reported Data: Fisk University </div>
+<div class="mr-4">|</div>
+<div class="mr-2">Select year:</div>
+<div class="mr-4">
+<select onchange="selectYear(event)">
+<option value="2022">2022</option>
+<option value="2021">2021</option>
+<option value="2020">2020</option>
+<option value="2019">2019</option>
+<option value="2018">2018</option>
+<option value="2017">2017</option>
+<option value="2016">2016</option>
+<option value="2015">2015</option>
+<option value="2014">2014</option>
+<option value="2013">2013</option>
+<option value="2012">2012</option>
+<option value="2011">2011</option>
+<option value="2010">2010</option>
+<option value="2009">2009</option>
+<option value="2008">2008</option>
+<option value="2007">2007</option>
+<option selected="" value="2006">2006</option>
+<option value="2005">2005</option>
+<option value="2004">2004</option>
+<option value="2003">2003</option>
+<option value="2002">2002</option>
+<option value="2001">2001</option>
+</select>
+</div>
+<div class="mr-2">Select survey:</div>
+<div class="mr-2">
+<select id="select-surveys" onchange="selectSurvey(event)">
+<option value="1">Institutional Characteristics</option>
+<option value="2">Fall Enrollment</option>
+<option value="3">Completions</option>
+<option value="8">Graduation Rates</option>
+<option value="7">Student Financial Aid and Net Price</option>
+<option selected="" value="6">Finance</option>
+<option value="9">Human Resources</option>
+</select>
+</div>
+<div style="flex: 1 1 auto!important;"> </div>
+<div>
+<button class="mr-4 btn">
+<img onclick="printPage()" src="images/printer-svgrepo-com.svg" style="width: 15px"/>
+</button>
+<a href="Facsimile.aspx?unitId=220181">
+<img src="images/icon_close.svg" style="width: 25px"/>
+</a>
+</div>
+</div>
+</div>
+</div>
+<a id="top"></a>
+<form action="./facsimileView.aspx?unitid=220181&amp;surveynumber=6&amp;year=2006&amp;goToReportId=6" id="form1" method="post" name="form1">
+<div>
+<input id="__VIEWSTATE" name="__VIEWSTATE" type="hidden" value="/wEPDwUJNDk4MDAyNjQ0ZGQ1Rt5I0VdqjyBZxpj37FRHeGkbkoRpCmohM64NK8Nn3w=="/>
+</div>
+<div>
+<input id="__VIEWSTATEGENERATOR" name="__VIEWSTATEGENERATOR" type="hidden" value="3C3AC055"/>
+</div>
+<div style="width: 1000px; margin: 0 auto;">
+<div class="note-message" id="data-not-revised-note">Note: Institution did NOT submit revisions through the Prior Year Data Revision System for selected collection year and survey.</div>
+<div class="note-message" id="data-revised-note">Note: Reported data includes revisions made through the Prior Year Data Revision System for  selected collection year and survey.</div>
+<div class="note-message show" id="pre-2014-data-not-revised-note">Note: Reported data do not include revisions made through the Prior Year Data Revision System for any institution prior to collection year 2014.</div>
+<div class="note-message" id="latest-year-data-not-revised-note">Note: Revisions made through the Prior Year Data Revision System are not available for the selected collection year.</div>
+<div class="no-survey-found">
+                Please select survey from dropdown above
+            </div>
+<div id="survey_content"><div class="facsimile_assets"><table border="0" cellpadding="0" cellspacing="0" id="Table3" width="650">
+<tbody><tr>
+<td align="left">
+<table border="0" cellpadding="0" cellspacing="0" id="tblHeader" width="650">
+<tbody><tr>
+<td colspan="2">
+<div align="center" class="pagetitle">
+<span id="lblSurveyName">Finance 2005-06</span>
+</div>
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+<table border="0" width="100%">
+<tbody><tr valign="top">
+<td><table border="0" cellpadding="0" cellspacing="0" class="shade" width="100%"><tbody><tr><td align="left" width="60%">Institution:  (220181) </td><td align="right">User ID: super1</td></tr></tbody></table></td>
+</tr><tr class="pagetitle" valign="top">
+<td align="center">Finance - Private not-for-profit institutions and Public institutions using FASB standards</td>
+</tr><tr valign="top">
+<td><input id="hidDataChanged" name="hidDataChanged" type="hidden"/><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+<td align="center" class="heading" colspan="3" id="tc1"><span><b>General Information<br/>Finance - FASB Institutions</b></span></td>
+</tr><tr>
+<td align="left" class="shade" colspan="3" id="tc2"><span>To the extent possible, the finance data requested in this report should be provided from your institution's audited General Purpose Financial Statement (GPFS).  Please refer to the instructions specific to each page of the survey for detailed instruction and references.</span></td>
+</tr>
+</tbody></table><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+<td align="left" class="shade" colspan="5" id="tc3"><span><b>1. Fiscal Year calendar</b></span></td>
+</tr><tr>
+<td align="left" class="shade" colspan="5" id="tc4"><span><b>This report covers financial activities for the 12-month fiscal year:</b> (The fiscal year reported should be the most recent fiscal year ending before October 1, 2006.)</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc5"><span>Beginning: month/year (MMYYYY)</span></td><td align="right" class="shade" id="tc6"><span>Month:</span></td><td align="left" class="shade" id="tcf13689"><input id="tbf13689" maxlength="3" name="tbf13689" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="7"/></td><td align="right" class="shade" id="tc7"><span>Year:</span></td><td align="left" class="shade" id="tcf7931"><input id="tbf7931" maxlength="4" name="tbf7931" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="2005"/></td>
+</tr><tr>
+<td align="left" class="shade" id="tc8"><span>And ending: month/year (MMYYYY)</span></td><td align="right" class="shade" id="tc9"><span>Month:</span></td><td align="left" class="shade" id="tcf13690"><input id="tbf13690" maxlength="3" name="tbf13690" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="6"/></td><td align="right" class="shade" id="tc10"><span>Year:</span></td><td align="left" class="shade" id="tcf7933"><input id="tbf7933" maxlength="4" name="tbf7933" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="2006"/></td>
+</tr>
+</tbody></table><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+<td align="left" class="shade" colspan="7" id="tc11"><span><b>2. <a href="javascript:openglossary(727)">Audit Opinion</a></b></span></td>
+</tr><tr>
+<td align="left" class="shade" colspan="7" id="tc12"><span><b>Did your institution receive an unqualified opinion on its General Purpose Financial Statements from your auditor for the fiscal year noted above?</b>  (If your institution is audited only in combination with another entity, answer this question based on the audit of that entity.)</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc13">    </td><td align="center" class="shade" id="tcv1f13624"><img src="images/viewonly/radio_off.gif"/><label for="rbv1f13624"></label></td><td align="left" class="shade" id="tc14"><span>Unqualified</span></td><td align="center" class="shade" id="tcv2f13624"><img src="images/viewonly/radio_off.gif"/><label for="rbv2f13624"></label></td><td align="left" class="shade" id="tc15"><span>Qualified (Explain in Caveats below)</span></td><td align="center" class="shade" id="tcv3f13624"><img src="images/viewonly/radio_on.gif"/><label for="rbv3f13624"></label></td><td align="left" class="shade" id="tc16">Don't know (Explain in Caveats below)               </td>
+</tr>
+</tbody></table><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+<td align="left" class="shade" colspan="3" id="tc17"><span><b>3. Does this institution or any of its foundations or other affiliated organizations own <a href="javascript:openglossary(197)">endowment assets</a> ?</b></span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc18">    </td><td align="center" class="shade" id="tcv1f13623"><img src="images/viewonly/radio_on.gif"/><label for="rbv1f13623"></label></td><td align="left" class="shade" id="tc19">Yes (report endowment assets)                                                       </td>
+</tr><tr>
+<td align="left" class="shade" id="tc20"><span> </span></td><td align="center" class="shade" id="tcv2f13623"><img src="images/viewonly/radio_off.gif"/><label for="rbv2f13623"></label></td><td align="left" class="shade" id="tc21"><span>No</span></td>
+</tr>
+</tbody></table><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+<td align="left" class="shade" colspan="3" id="tc22"><span><b>4. If your institution participates in intercollegiate athletics, are the expenses accounted for as auxiliary enterprises or treated as student services?</b></span></td>
+</tr><tr>
+<td align="left" class="shade" colspan="3" id="tc23"><span> </span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc24">    </td><td align="center" class="shade" id="tcv1f14273"><img src="images/viewonly/radio_off.gif"/><label for="rbv1f14273"></label></td><td align="left" class="shade" id="tc25">Auxiliary enterprises               </td>
+</tr><tr>
+<td align="left" class="shade" id="tc26">    </td><td align="center" class="shade" id="tcv2f14273"><img src="images/viewonly/radio_on.gif"/><label for="rbv2f14273"></label></td><td align="left" class="shade" id="tc27">Student services               </td>
+</tr><tr>
+<td align="left" class="shade" id="tc28">    </td><td align="center" class="shade" id="tcv3f14273"><img src="images/viewonly/radio_off.gif"/><label for="rbv3f14273"></label></td><td align="left" class="shade" id="tc29">Does not participate in intercollegiate athletics               </td>
+</tr><tr>
+<td align="left" class="shade" id="tc30">    </td><td align="center" class="shade" id="tcv4f14273"><img src="images/viewonly/radio_off.gif"/><label for="rbv4f14273"></label></td><td align="left" class="shade" id="tc31">Other (specify in caveats box below)               </td>
+</tr>
+</tbody></table><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+<td align="left" class="shade" colspan="7" id="tc32"><span><b>5. Does your institution account for Pell grants as pass through transactions (a simple payment on the student's account) or as federal grant revenues to the institution?</b></span></td>
+</tr><tr>
+<td align="left" class="shade" colspan="7" id="tc33"><span> </span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc34">    </td><td align="center" class="shade" id="tcv1f14274"><img src="images/viewonly/radio_on.gif"/><label for="rbv1f14274"></label></td><td align="left" class="shade" id="tc35"><span>Pass through (agency)</span></td><td align="center" class="shade" id="tcv2f14274"><img src="images/viewonly/radio_off.gif"/><label for="rbv2f14274"></label></td><td align="left" class="shade" id="tc36"><span>Federal grants</span></td><td align="center" class="shade" id="tcv3f14274"><img src="images/viewonly/radio_off.gif"/><label for="rbv3f14274"></label></td><td align="left" class="shade" id="tc37">Does not award Pell grants               </td>
+</tr>
+</tbody></table><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+<td align="left" class="shade" colspan="4" id="tc38"><span>Caveats:</span></td>
+</tr><tr>
+<td align="left" class="shade" colspan="4" id="tcf7938"><textarea cols="20" id="taf7938" name="taf7938" readonly="readonly" rows="2">This is a draft as the final audit report has not been issued.</textarea></td>
+</tr>
+</tbody></table></td>
+</tr><tr valign="top">
+<td><hr/><div style="PAGE-BREAK-AFTER:always; height:30px"> </div></td>
+</tr><tr valign="top">
+<td><table border="0" cellpadding="0" cellspacing="0" class="shade" width="100%"><tbody><tr><td align="left" width="60%">Institution:  (220181) </td><td align="right">User ID: super1</td></tr></tbody></table></td>
+</tr><tr class="pagetitle" valign="top">
+<td align="center">Part A - Statement of Financial Position, Page 1</td>
+</tr><tr valign="top">
+<td><input id="hidDataChanged" name="hidDataChanged" type="hidden"/><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+<td align="center" class="heading" colspan="4" id="tc1"><span><b>Fiscal Year 2006</b><br/>Report in whole dollars only</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc2"><span><b>Line No.</b></span></td><td align="center" class="shade" id="tc3"><span><b>Assets, Liabilities, and Net Assets</b></span></td><td align="center" class="shade" id="tc4"><span><b>Total Amount</b></span></td><td align="center" class="shade" id="tc5"><span><b>Prior Year Amounts</b></span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc6"><span> </span></td><td align="left" class="shade" colspan="3" id="tc7"><span><b><a href="javascript:openglossary(51)">Assets</a></b></span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc8"><span>01</span></td><td align="left" class="shade" id="tc9"><span><a href="javascript:openglossary(377)">Long-term investments</a></span></td><td align="right" class="shade" id="tcf7761"><input id="tbf7761" maxlength="19" name="tbf7761" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="79,470,242"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8056"><span id="reff8056" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">19,947,845</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc10"><span>02</span></td><td align="left" class="shade" id="tc11"><span>Total  assets</span></td><td align="right" class="shade" id="tcf7762"><input id="tbf7762" maxlength="19" name="tbf7762" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="85,797,358"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8057"><span id="reff8057" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">88,126,149</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc12"><span> </span></td><td align="left" class="shade" colspan="3" id="tc13"><span><b><a href="javascript:openglossary(357)">Liabilities</a></b></span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc14"><span>03</span></td><td align="left" class="shade" id="tc15"><span>Total liabilities</span></td><td align="right" class="shade" id="tcf7763"><input id="tbf7763" maxlength="19" name="tbf7763" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="18,355,507"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8058"><span id="reff8058" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">17,967,669</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc16"><span> </span></td><td align="left" class="shade" colspan="3" id="tc17"><span><b><a href="javascript:openglossary(401)">Net assets</a></b></span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc18"><span>04</span></td><td align="left" class="shade" id="tc19"><span>Total <a href="javascript:openglossary(689)">unrestricted net assets</a></span></td><td align="right" class="shade" id="tcf7764"><input id="tbf7764" maxlength="19" name="tbf7764" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="38,953,406"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8059"><span id="reff8059" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">44,346,049</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc20"><span>05</span></td><td align="left" class="shade" id="tc21"><span>Total <a href="javascript:openglossary(559)">restricted net assets</a></span></td><td align="right" class="shade" id="tcf7765"><input id="tbf7765" maxlength="19" name="tbf7765" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="28,488,445"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8060"><span id="reff8060" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">25,812,431</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc22"><span>     05a</span></td><td align="left" class="shade" id="tc23"><span><a href="javascript:openglossary(761)">Permanently restricted</a> net assets included in line 05</span></td><td align="right" class="shade" id="tcf14094"><input id="tbf14094" maxlength="19" name="tbf14094" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="20,254,565"/></td><td align="right" class="shade" id="tc24"><span> </span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc25"><span>06</span></td><td align="left" class="shade" id="tc26"><span>Total net assets</span></td><td align="right" class="shade" id="tcf7766"><input id="tbf7766" maxlength="19" name="tbf7766" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="67,441,851"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8061"><span id="reff8061" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">70,158,480</span></td>
+</tr>
+</tbody></table></td>
+</tr><tr valign="top">
+<td><hr/><div style="PAGE-BREAK-AFTER:always; height:30px"> </div></td>
+</tr><tr valign="top">
+<td><table border="0" cellpadding="0" cellspacing="0" class="shade" width="100%"><tbody><tr><td align="left" width="60%">Institution:  (220181) </td><td align="right">User ID: super1</td></tr></tbody></table></td>
+</tr><tr class="pagetitle" valign="top">
+<td align="center">Part A - Statement of Financial Position, Page 2</td>
+</tr><tr valign="top">
+<td><input id="hidDataChanged" name="hidDataChanged" type="hidden"/><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+</tr><tr>
+<td align="center" class="heading" colspan="4" id="tc1"><span><b>Fiscal Year 2006</b><br/>Report in whole dollars only</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc2"><span><br/><b>Line No.</b></span></td><td align="center" class="shade" id="tc3"><span><b><br/>Plant, Property and Equipment</b></span></td><td align="center" class="shade" id="tc4"><span><b>Total Amount<br/> End of Year</b></span></td><td align="center" class="shade" id="tc5"><span><br/><b>Prior Year Amounts</b></span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc6"><span>11</span></td><td align="left" class="shade" id="tc7"><span><a href="javascript:openglossary(750)">Land and land improvements</a></span></td><td align="right" class="shade" id="tcf7767"><input id="tbf7767" maxlength="19" name="tbf7767" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="889,438"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8062"><span id="reff8062" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">389,438</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc8"><span>12</span></td><td align="left" class="shade" id="tc9"><span><a href="javascript:openglossary(728)">Buildings</a></span></td><td align="right" class="shade" id="tcf7768"><input id="tbf7768" maxlength="19" name="tbf7768" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="46,290,865"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8063"><span id="reff8063" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">46,186,499</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc10"><span>13</span></td><td align="left" class="shade" id="tc11"><span>Equipment, including art and <a href="javascript:openglossary(359)"> library</a> collections</span></td><td align="right" class="shade" id="tcf7769"><input id="tbf7769" maxlength="19" name="tbf7769" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="62,839,971"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8064"><span id="reff8064" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">62,031,317</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc12"><span>14</span></td><td align="left" class="shade" id="tc13"><span>Property obtained under capital leases <br/>(if not included in equipment)</span></td><td align="right" class="shade" id="tcf7770"><input id="tbf7770" maxlength="19" name="tbf7770" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8065"><span id="reff8065" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr>
+</tbody></table><table border="0">
+<tbody><tr id="trHiddenFields">
+<td id="tcHiddenHeader"></td>
+</tr>
+</tbody></table></td>
+</tr><tr valign="top">
+<td><hr/><div style="PAGE-BREAK-AFTER:always; height:30px"> </div></td>
+</tr><tr valign="top">
+<td><table border="0" cellpadding="0" cellspacing="0" class="shade" width="100%"><tbody><tr><td align="left" width="60%">Institution:  (220181) </td><td align="right">User ID: super1</td></tr></tbody></table></td>
+</tr><tr class="pagetitle" valign="top">
+<td align="center">Part B - Summary of Changes in Net Assets</td>
+</tr><tr valign="top">
+<td><input id="hidDataChanged" name="hidDataChanged" type="hidden"/><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+<td align="center" class="heading" colspan="4" id="tc1"><span><b>(Please complete Part A before providing data for Part B)</b><br/><br/><b>Fiscal Year 2006</b><br/>Report in whole dollars only</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc2"><span><b>Line No.</b></span></td><td align="center" class="shade" id="tc3"><span><b>Revenues, Expenses, Gains and Losses</b></span></td><td align="center" class="shade" id="tc4"><span><b>Total Amount</b></span></td><td align="center" class="shade" id="tc5"><span><b>Prior Year Amounts</b></span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc6"><span>01</span></td><td align="left" class="shade" id="tc7"><span>Total <a href="javascript:openglossary(561)">revenues</a> and <a href="javascript:openglossary(347)">investment return</a></span></td><td align="right" class="shade" id="tcf7771"><input id="tbf7771" maxlength="19" name="tbf7771" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="23,782,402"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8066"><span id="reff8066" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">34,958,704</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc8"><span>02            </span></td><td align="left" class="shade" id="tc9"><span>Total <a href="javascript:openglossary(211)">expenses</a><br/>(enter a positive number)</span></td><td align="right" class="shade" id="tcf7772"><input id="tbf7772" maxlength="19" name="tbf7772" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="27,533,362"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8067"><span id="reff8067" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">26,857,225</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc10"><span>03</span></td><td align="left" class="shade" id="tc11"><span><b><a href="javascript:openglossary(455)">Other specific changes in net assets</a> (CV)<br/>CV</b>=[B04-(B01-B02)]</span></td><td align="right" class="shade_calc" id="tcf7773"><span id="reff7773" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td><td align="right" class="shade" id="tc12"><span> </span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc13"><span>04</span></td><td align="left" class="shade" id="tc14"><span>Change in <a href="javascript:openglossary(401)">net assets</a></span></td><td align="right" class="shade" id="tcf7774"><span id="imgSpan"> <a href="javascript:openerror('ErrorCodePopUp.aspx?param=756e697469643d3232303138312673757276657969643d35266669656c6469643d373737342673637265656e446973706c614d6f64653d33266572726f724d736752736e3d266572726f724d7367506172616d3d267264743d372f372f323031302031313a35383a353520414d');"><img border="0" src="images/notice2.gif"/></a> </span><input id="tbf7774" maxlength="19" name="tbf7774" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="-3,750,960"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8068"><span id="reff8068" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">8,101,479</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc15"><span>05</span></td><td align="left" class="shade" id="tc16"><span>Net assets, beginning of year</span></td><td align="right" class="shade" id="tcf7775"><input id="tbf7775" maxlength="19" name="tbf7775" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="70,158,480"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8069"><span id="reff8069" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">62,057,001</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc17"><span>06</span></td><td align="left" class="shade" id="tc18"><span><b>Adjustments to beginning of year net <br/>assets (CV)<br/>CV</b>=[B07-(B04+B05)]</span></td><td align="right" class="shade_db" id="tcf7776"><span id="reff7776" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">1,034,331</span></td><td align="right" class="shade_calc_foreign_py" id="tcf8070"><span id="reff8070" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc19"><span>07                     </span></td><td align="left" class="shade" id="tc20"><span><b>Net assets, end of year (from A06)</b></span></td><td align="right" class="shade_calc_foreign" id="tcf7766"><span id="reff7766" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">67,441,851</span></td><td align="right" class="shade_calc_foreign_py" id="tcf8061"><span id="reff8061" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">70,158,480</span></td>
+</tr>
+</tbody></table></td>
+</tr><tr valign="top">
+<td><hr/><div style="PAGE-BREAK-AFTER:always; height:30px"> </div></td>
+</tr><tr valign="top">
+<td><table border="0" cellpadding="0" cellspacing="0" class="shade" width="100%"><tbody><tr><td align="left" width="60%">Institution:  (220181) </td><td align="right">User ID: super1</td></tr></tbody></table></td>
+</tr><tr class="pagetitle" valign="top">
+<td align="center">Part C - Student Grants</td>
+</tr><tr valign="top">
+<td><input id="hidDataChanged" name="hidDataChanged" type="hidden"/><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+</tr><tr>
+<td align="center" class="heading" colspan="4" id="tc1"><span><b>Fiscal Year 2006</b><br/>Report in whole dollars only</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc2"><span><b>Line No.</b></span></td><td align="center" class="shade" id="tc3"><span><b>Student Grants</b></span></td><td align="center" class="shade" id="tc4"><span><b>Total Amount</b></span></td><td align="center" class="shade" id="tc5"><span><b>Prior Year Amounts</b></span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc6"><span>01</span></td><td align="left" class="shade" id="tc7"><span><a href="javascript:openglossary(473)">Pell grants</a></span></td><td align="right" class="shade" id="tcf7777"><input id="tbf7777" maxlength="15" name="tbf7777" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="1,272,590"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8072"><span id="reff8072" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">1,205,023</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc8"><span>02</span></td><td align="left" class="shade" id="tc9"><span>Other <a href="javascript:openglossary(227)">federal grants</a></span></td><td align="right" class="shade" id="tcf7778"><input id="tbf7778" maxlength="15" name="tbf7778" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="212,361"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8073"><span id="reff8073" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">246,556</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc10"><span>03</span></td><td align="left" class="shade" id="tc11"><span><a href="javascript:openglossary(611)"></a><a href="javascript:openglossary(605)">State grants</a></span></td><td align="right" class="shade" id="tcf7779"><input id="tbf7779" maxlength="15" name="tbf7779" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8074"><span id="reff8074" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">458,066</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc12"><span>04</span></td><td align="left" class="shade" id="tc13"><span><a href="javascript:openglossary(373)"></a><a href="javascript:openglossary(373)">Local grants</a></span></td><td align="right" class="shade" id="tcf7780"><input id="tbf7780" maxlength="15" name="tbf7780" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8075"><span id="reff8075" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc14"><span>05</span></td><td align="left" class="shade" id="tc15"><span><a href="javascript:openglossary(319)">Institutional grants (funded)</a></span></td><td align="right" class="shade" id="tcf7781"><input id="tbf7781" maxlength="15" name="tbf7781" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="200,000"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8076"><span id="reff8076" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">179,833</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc16"><span>06</span></td><td align="left" class="shade" id="tc17"><span><a href="javascript:openglossary(321)">Institutional grants (unfunded)</a></span></td><td align="right" class="shade" id="tcf7782"><input id="tbf7782" maxlength="15" name="tbf7782" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="3,889,489"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8077"><span id="reff8077" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">1,930,293</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc18"><span>07</span></td><td align="left" class="shade" id="tc19"><span><b>Total student grants (CV)<br/>CV</b>=[C01+...+C06]</span></td><td align="right" class="shade_calc" id="tcf7783"><span id="reff7783" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">5,574,440</span></td><td align="right" class="shade_calc_foreign_py" id="tcf8078"><span id="reff8078" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">4,019,771</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc20"><span>08</span></td><td align="left" class="shade" id="tc21"><span><a href="javascript:openglossary(41)">Allowances</a> (scholarships) applied to <a href="javascript:openglossary(669)">tuition and fees</a></span></td><td align="right" class="shade" id="tcf7784"><input id="tbf7784" maxlength="15" name="tbf7784" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="3,475,200"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8079"><span id="reff8079" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">2,949,644</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc22"><span>09</span></td><td align="left" class="shade" id="tc23"><span><a href="javascript:openglossary(41)">Allowances</a> (scholarships) applied to <a href="javascript:openglossary(67)">auxiliary enterprise revenues</a></span></td><td align="right" class="shade" id="tcf7785"><input id="tbf7785" maxlength="15" name="tbf7785" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8080"><span id="reff8080" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr>
+</tbody></table><table border="0">
+<tbody><tr id="trHiddenFields">
+<td id="tcHiddenHeader"></td>
+</tr>
+</tbody></table></td>
+</tr><tr valign="top">
+<td><hr/><div style="PAGE-BREAK-AFTER:always; height:30px"> </div></td>
+</tr><tr valign="top">
+<td><table border="0" cellpadding="0" cellspacing="0" class="shade" width="100%"><tbody><tr><td align="left" width="60%">Institution:  (220181) </td><td align="right">User ID: super1</td></tr></tbody></table></td>
+</tr><tr class="pagetitle" valign="top">
+<td align="center">Part D - Revenues and Investment Return</td>
+</tr><tr valign="top">
+<td><input id="hidDataChanged" name="hidDataChanged" type="hidden"/><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+</tr><tr>
+<td align="center" class="heading" colspan="4" id="tc1"><span><b>(Please complete Parts B and C before providing data for Part D)<br/><br/>Fiscal Year 2006</b><br/>Report in whole dollars only</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc2"><span><b>Line No.</b></span></td><td align="center" class="shade" id="tc3"><span><b><br/>Source of Funds</b></span></td><td align="center" class="shade" id="tc4"><span><b><br/>Total Amount</b></span></td><td align="center" class="shade" id="tc5"><span><b>Prior Year Amounts</b></span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc6"><span>01</span></td><td align="left" class="shade" id="tc7"><span><a href="javascript:openglossary(669)"></a><a href="javascript:openglossary(768)">Tuition and fees</a> (net of allowance reported in Part C, line 08)</span></td><td align="right" class="shade" id="tcf7786"><input id="tbf7786" maxlength="15" name="tbf7786" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="7,765,603"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8081"><span id="reff8081" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">7,212,657</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc8"><span> </span></td><td align="left" class="shade" colspan="3" id="tc9"><span><b><a href="javascript:openglossary(271)">Government Appropriations</a> </b></span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc10"><span>02</span></td><td align="left" class="shade" id="tc11"><span>Federal appropriations</span></td><td align="right" class="shade" id="tcf7787"><input id="tbf7787" maxlength="15" name="tbf7787" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8082"><span id="reff8082" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc12"><span>03</span></td><td align="left" class="shade" id="tc13"><span>State appropriations</span></td><td align="right" class="shade" id="tcf7788"><input id="tbf7788" maxlength="15" name="tbf7788" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8083"><span id="reff8083" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc14"><span>04</span></td><td align="left" class="shade" id="tc15"><span>Local appropriations</span></td><td align="right" class="shade" id="tcf7789"><input id="tbf7789" maxlength="15" name="tbf7789" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8084"><span id="reff8084" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc16"><span> </span></td><td align="left" class="shade" colspan="3" id="tc17"><span><b><a href="javascript:openglossary(273)">Government Grants and Contracts</a></b></span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc18"><span>05</span></td><td align="left" class="shade" id="tc19"><span>Federal grants and contracts</span></td><td align="right" class="shade" id="tcf7790"><input id="tbf7790" maxlength="15" name="tbf7790" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="6,793,963"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8085"><span id="reff8085" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">7,782,769</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc20"><span>06</span></td><td align="left" class="shade" id="tc21"><span>State grants and contracts</span></td><td align="right" class="shade" id="tcf7791"><input id="tbf7791" maxlength="15" name="tbf7791" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8086"><span id="reff8086" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc22"><span>07</span></td><td align="left" class="shade" id="tc23"><span>Local grants and contracts</span></td><td align="right" class="shade" id="tcf7792"><input id="tbf7792" maxlength="15" name="tbf7792" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8087"><span id="reff8087" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc24"><span> </span></td><td align="left" class="shade" colspan="3" id="tc25"><span><b><a href="javascript:openglossary(509)">Private Gifts, Grants and Contracts</a> </b></span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc26"><span>08</span></td><td align="left" class="shade" id="tc27"><span>Private gifts, grants and contracts</span></td><td align="right" class="shade" id="tcf7793"><input id="tbf7793" maxlength="15" name="tbf7793" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="4,532,226"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8088"><span id="reff8088" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">4,573,434</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc28"><span>09</span></td><td align="left" class="shade" id="tc29"><span><a href="javascript:openglossary(143)"></a><a href="javascript:openglossary(143)">Contributions from affiliated entities</a></span></td><td align="right" class="shade" id="tcf7794"><input id="tbf7794" maxlength="15" name="tbf7794" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8089"><span id="reff8089" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">203,351</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc30"><span> </span></td><td align="left" class="shade" colspan="3" id="tc31"><span><b>Other Revenue</b></span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc32"><span>10</span></td><td align="left" class="shade" id="tc33"><span><a href="javascript:openglossary(347)"></a><a href="javascript:openglossary(347)">Investment return</a></span></td><td align="right" class="shade" id="tcf7795"><input id="tbf7795" maxlength="15" name="tbf7795" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="597,541"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8090"><span id="reff8090" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">11,798,417</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc34"><span>11</span></td><td align="left" class="shade" id="tc35"><span><a href="javascript:openglossary(571)"></a><a href="javascript:openglossary(571)">Sales and services of educational activities</a></span></td><td align="right" class="shade" id="tcf7796"><input id="tbf7796" maxlength="15" name="tbf7796" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8091"><span id="reff8091" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc36"><span>12</span></td><td align="left" class="shade" id="tc37"><span>Sales and services of <a href="javascript:openglossary(67)">auxiliary enterprises</a><br/> (net of allowance reported in Part C, line 09)</span></td><td align="right" class="shade" id="tcf7797"><input id="tbf7797" maxlength="15" name="tbf7797" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="4,324,271"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8092"><span id="reff8092" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">3,388,076</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc38"><span>13</span></td><td align="left" class="shade" id="tc39"><span><a href="javascript:openglossary(293)">Hospital revenue</a> <br/><br/>If this institution is primarily a hospital, please <a href="javascript:openglossary(771)">click here</a></span></td><td align="right" class="shade" id="tcf7798"><input id="tbf7798" maxlength="15" name="tbf7798" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8093"><span id="reff8093" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc40"><span>14</span></td><td align="left" class="shade" id="tc41"><span><a href="javascript:openglossary(301)"></a><a href="javascript:openglossary(301)">Independent operations revenue</a></span></td><td align="right" class="shade" id="tcf7799"><input id="tbf7799" maxlength="15" name="tbf7799" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc_foreign_py" id="tcf8094"><span id="reff8094" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc42"><span>15</span></td><td align="left" class="shade" id="tc43"><span><b>Other revenue (CV)<br/>CV</b>=[D16-(D01+...+D14)]</span></td><td align="right" class="shade_db" id="tcf7800"><span id="imgSpan"> <a href="javascript:openerror('ErrorCodePopUp.aspx?param=756e697469643d3232303138312673757276657969643d35266669656c6469643d373830302673637265656e446973706c614d6f64653d33266572726f724d736752736e3d266572726f724d7367506172616d3d267264743d372f372f323031302031313a35383a353520414d');"><img border="0" src="images/notice2.gif"/></a> </span><span id="reff7800" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">-231,202</span></td><td align="right" class="shade" id="tc44"><span> </span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc45"><span>16</span></td><td align="left" class="shade" id="tc46"><span><b>Total revenues and investment return (from B01)</b></span></td><td align="right" class="shade_calc_foreign" id="tcf7771"><span id="reff7771" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">23,782,402</span></td><td align="right" class="shade_calc_foreign_py" id="tcf8095"><span id="reff8095" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">34,958,704</span></td>
+</tr>
+</tbody></table><table border="0">
+<tbody><tr id="trHiddenFields">
+<td id="tcHiddenHeader"></td>
+</tr>
+</tbody></table></td>
+</tr><tr valign="top">
+<td><hr/><div style="PAGE-BREAK-AFTER:always; height:30px"> </div></td>
+</tr><tr valign="top">
+<td><table border="0" cellpadding="0" cellspacing="0" class="shade" width="100%"><tbody><tr><td align="left" width="60%">Institution:  (220181) </td><td align="right">User ID: super1</td></tr></tbody></table></td>
+</tr><tr class="pagetitle" valign="top">
+<td align="center">Part E - Expenses by Functional and Natural Classification</td>
+</tr><tr valign="top">
+<td><input id="hidDataChanged" name="hidDataChanged" type="hidden"/><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+</tr><tr>
+<td align="center" class="heading" colspan="9" id="tc1"><span><b>(Please complete Part B before providing data for Part E)<br/><br/>Fiscal Year 2006</b><br/>Report in whole dollars only</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc2"><span><b>Line No.</b></span></td><td align="left" class="shade" id="tc3"><span><b>Expenses by Functional Classification</b></span></td><td align="left" class="shade" id="tc4"><span><b>Total amount</b></span></td><td align="left" class="shade" id="tc5"><span><a href="javascript:openglossary(567)"><b>Salaries and wages</b></a></span></td><td align="left" class="shade" id="tc6"><span><a href="javascript:openglossary(83)"><b>Benefits</b></a></span></td><td align="left" class="shade" id="tc7"><span><b>Operation and maintenance of plant</b></span></td><td align="left" class="shade" id="tc8"><span><a href="javascript:openglossary(173)"><b>Depreciation</b></a></span></td><td align="left" class="shade" id="tc9"><span><a href="javascript:openglossary(341)"><b>Interest</b></a></span></td><td align="left" class="shade" id="tc10"><span><b>All other</b></span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc11"><span> </span></td><td align="left" class="shade" id="tc12"><span> </span></td><td align="left" class="shade" id="tc13"><span>(1)</span></td><td align="left" class="shade" id="tc14"><span>(2)</span></td><td align="left" class="shade" id="tc15"><span>(3)</span></td><td align="left" class="shade" id="tc16"><span>(4)</span></td><td align="left" class="shade" id="tc17"><span>(5)</span></td><td align="left" class="shade" id="tc18"><span>(6)</span></td><td align="left" class="shade" id="tc19"><span>(7)</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc20"><span>01</span></td><td align="left" class="shade" id="tc21"><span><a href="javascript:openglossary(331)">Instruction</a></span></td><td align="right" class="shade" id="tcf7801"><input id="tbf7801" maxlength="15" name="tbf7801" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="6,872,533"/></td><td align="right" class="shade" id="tcf7802"><input id="tbf7802" maxlength="15" name="tbf7802" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="2,158,534"/></td><td align="right" class="shade" id="tcf13625"><input id="tbf13625" maxlength="15" name="tbf13625" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="604,390"/></td><td align="right" class="shade" id="tcf13626"><input id="tbf13626" maxlength="15" name="tbf13626" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13627"><input id="tbf13627" maxlength="15" name="tbf13627" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="696,484"/></td><td align="right" class="shade" id="tcf13628"><input id="tbf13628" maxlength="15" name="tbf13628" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="176,069"/></td><td align="right" class="shade_calc" id="tcf13629"><span id="reff13629" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">3,237,056</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc22"><span>02</span></td><td align="left" class="shade" id="tc23"><span><a href="javascript:openglossary(549)">Research</a></span></td><td align="right" class="shade" id="tcf7803"><input id="tbf7803" maxlength="15" name="tbf7803" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="4,690,815"/></td><td align="right" class="shade" id="tcf7804"><input id="tbf7804" maxlength="15" name="tbf7804" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="2,118,965"/></td><td align="right" class="shade" id="tcf13630"><input id="tbf13630" maxlength="15" name="tbf13630" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="593,310"/></td><td align="right" class="shade" id="tcf13631"><input id="tbf13631" maxlength="15" name="tbf13631" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13632"><input id="tbf13632" maxlength="15" name="tbf13632" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="413,723"/></td><td align="right" class="shade" id="tcf13633"><input id="tbf13633" maxlength="15" name="tbf13633" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="104,588"/></td><td align="right" class="shade_calc" id="tcf13680"><span id="reff13680" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">1,460,229</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc24"><span>03</span></td><td align="left" class="shade" id="tc25"><span><a href="javascript:openglossary(533)">Public service</a></span></td><td align="right" class="shade" id="tcf7805"><input id="tbf7805" maxlength="15" name="tbf7805" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf7806"><input id="tbf7806" maxlength="15" name="tbf7806" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13681"><input id="tbf13681" maxlength="15" name="tbf13681" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13682"><input id="tbf13682" maxlength="15" name="tbf13682" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13683"><input id="tbf13683" maxlength="15" name="tbf13683" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13684"><input id="tbf13684" maxlength="15" name="tbf13684" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc" id="tcf13634"><span id="reff13634" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc26"><span>04</span></td><td align="left" class="shade" id="tc27"><span><a href="javascript:openglossary(15)">Academic support</a></span></td><td align="right" class="shade" id="tcf7807"><input id="tbf7807" maxlength="15" name="tbf7807" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="3,123,251"/></td><td align="right" class="shade" id="tcf7808"><input id="tbf7808" maxlength="15" name="tbf7808" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="1,082,374"/></td><td align="right" class="shade" id="tcf13635"><input id="tbf13635" maxlength="15" name="tbf13635" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="303,065"/></td><td align="right" class="shade" id="tcf13636"><input id="tbf13636" maxlength="15" name="tbf13636" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13637"><input id="tbf13637" maxlength="15" name="tbf13637" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="312,525"/></td><td align="right" class="shade" id="tcf13638"><input id="tbf13638" maxlength="15" name="tbf13638" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="79,005"/></td><td align="right" class="shade_calc" id="tcf13639"><span id="reff13639" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">1,346,282</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc28"><span>05</span></td><td align="left" class="shade" id="tc29"><span><a href="javascript:openglossary(629)">Student service</a></span></td><td align="right" class="shade" id="tcf7809"><input id="tbf7809" maxlength="15" name="tbf7809" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="3,245,398"/></td><td align="right" class="shade" id="tcf7810"><input id="tbf7810" maxlength="15" name="tbf7810" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="1,213,360"/></td><td align="right" class="shade" id="tcf13640"><input id="tbf13640" maxlength="15" name="tbf13640" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="339,741"/></td><td align="right" class="shade" id="tcf13641"><input id="tbf13641" maxlength="15" name="tbf13641" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13642"><input id="tbf13642" maxlength="15" name="tbf13642" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="375,030"/></td><td align="right" class="shade" id="tcf13643"><input id="tbf13643" maxlength="15" name="tbf13643" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="94,806"/></td><td align="right" class="shade_calc" id="tcf13644"><span id="reff13644" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">1,222,461</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc30"><span>06</span></td><td align="left" class="shade" id="tc31"><span><a href="javascript:openglossary(325)">Institutional support</a></span></td><td align="right" class="shade" id="tcf7811"><input id="tbf7811" maxlength="15" name="tbf7811" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="7,693,886"/></td><td align="right" class="shade" id="tcf7812"><input id="tbf7812" maxlength="15" name="tbf7812" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="2,754,818"/></td><td align="right" class="shade" id="tcf13645"><input id="tbf13645" maxlength="15" name="tbf13645" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="771,349"/></td><td align="right" class="shade" id="tcf13646"><input id="tbf13646" maxlength="15" name="tbf13646" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13647"><input id="tbf13647" maxlength="15" name="tbf13647" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="973,292"/></td><td align="right" class="shade" id="tcf13648"><input id="tbf13648" maxlength="15" name="tbf13648" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="246,045"/></td><td align="right" class="shade_calc" id="tcf13649"><span id="reff13649" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">2,948,382</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc32"><span>07</span></td><td align="left" class="shade" id="tc33"><span><a href="javascript:openglossary(63)">Auxiliary enterprises</a></span></td><td align="right" class="shade" id="tcf7813"><input id="tbf7813" maxlength="15" name="tbf7813" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="1,907,479"/></td><td align="right" class="shade" id="tcf7814"><input id="tbf7814" maxlength="15" name="tbf7814" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="636,741"/></td><td align="right" class="shade" id="tcf13650"><input id="tbf13650" maxlength="15" name="tbf13650" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="178,287"/></td><td align="right" class="shade" id="tcf13651"><input id="tbf13651" maxlength="15" name="tbf13651" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13652"><input id="tbf13652" maxlength="15" name="tbf13652" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="205,373"/></td><td align="right" class="shade" id="tcf13653"><input id="tbf13653" maxlength="15" name="tbf13653" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="51,918"/></td><td align="right" class="shade_calc" id="tcf13654"><span id="reff13654" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">835,160</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc34"><span>08</span></td><td align="left" class="shade" id="tc35"><span><a href="javascript:openglossary(403)">Net grant aid to students</a> (net of tuition and fee allowances)<br/>(do not include work study here)</span></td><td align="right" class="shade" id="tcf7815"><input id="tbf7815" maxlength="15" name="tbf7815" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" colspan="5" id="tc36"><span> </span></td><td align="right" class="shade_calc_foreign" id="tcf15283"><span id="reff15283" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc37"><span>09</span></td><td align="left" class="shade" id="tc38"><span><a href="javascript:openglossary(291)"></a><a href="javascript:openglossary(291)">Hospital services</a><br/>If this institution is primarily a hospital, please <a href="javascript:openglossary(771)">click here</a></span></td><td align="right" class="shade" id="tcf7817"><input id="tbf7817" maxlength="15" name="tbf7817" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf7818"><input id="tbf7818" maxlength="15" name="tbf7818" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13660"><input id="tbf13660" maxlength="15" name="tbf13660" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13661"><input id="tbf13661" maxlength="15" name="tbf13661" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13662"><input id="tbf13662" maxlength="15" name="tbf13662" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13663"><input id="tbf13663" maxlength="15" name="tbf13663" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc" id="tcf13664"><span id="reff13664" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc39"><span>10</span></td><td align="left" class="shade" id="tc40"><span><a href="javascript:openglossary(299)">Independent operations</a></span></td><td align="right" class="shade" id="tcf7819"><input id="tbf7819" maxlength="15" name="tbf7819" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf7820"><input id="tbf7820" maxlength="15" name="tbf7820" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13665"><input id="tbf13665" maxlength="15" name="tbf13665" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13666"><input id="tbf13666" maxlength="15" name="tbf13666" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13667"><input id="tbf13667" maxlength="15" name="tbf13667" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13668"><input id="tbf13668" maxlength="15" name="tbf13668" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc" id="tcf13669"><span id="reff13669" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc41"><span>11</span></td><td align="left" class="shade" id="tc42"><span><a href="javascript:openglossary(437)">Operation and maintenance of plant (see instructions)</a></span></td><td align="center" class="shade" id="tc43"><span>0</span></td><td align="right" class="shade" id="tcf13675"><input id="tbf13675" maxlength="15" name="tbf13675" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13670"><input id="tbf13670" maxlength="15" name="tbf13670" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13671"><input id="tbf13671" maxlength="15" name="tbf13671" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13672"><input id="tbf13672" maxlength="15" name="tbf13672" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade" id="tcf13673"><input id="tbf13673" maxlength="15" name="tbf13673" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="0"/></td><td align="right" class="shade_calc" id="tcf13674"><span id="reff13674" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc44"><span>12</span></td><td align="left" class="shade" id="tc45"><span><b>Other expenses (CV)<br/>CV</b>=[E13-(E01+...+E11)]</span></td><td align="right" class="shade_db" id="tcf7821"><span id="reff7821" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td><td align="right" class="shade_calc" id="tcf7822"><span id="reff7822" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td><td align="right" class="shade_calc" id="tcf13676"><span id="reff13676" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td><td align="right" class="shade_calc" id="tcf13677"><span id="reff13677" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td><td align="right" class="shade_calc" id="tcf13678"><span id="reff13678" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td><td align="right" class="shade_calc" id="tcf13679"><span id="reff13679" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td><td align="right" class="shade_db" id="tcf13685"><span id="reff13685" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">0</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc46"><span>13</span></td><td align="left" class="shade" id="tc47"><span><b>Total expenses</b></span></td><td align="right" class="shade_calc_foreign" id="tcf7772"><span id="reff7772" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">27,533,362</span></td><td align="right" class="shade" id="tcf7824"><input id="tbf7824" maxlength="15" name="tbf7824" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="9,964,792"/></td><td align="right" class="shade" id="tcf7826"><input id="tbf7826" maxlength="15" name="tbf7826" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="2,790,142"/></td><td align="center" class="shade" id="tc48"><span>0</span></td><td align="right" class="shade" id="tcf7827"><input id="tbf7827" maxlength="15" name="tbf7827" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="2,976,427"/></td><td align="right" class="shade" id="tcf7828"><input id="tbf7828" maxlength="15" name="tbf7828" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="752,431"/></td><td align="right" class="shade_db" id="tcf7829"><span id="reff7829" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">11,049,570</span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc49"><span> </span></td><td align="left" class="shade" id="tc50"><span><b>Prior year total expenses</b></span></td><td align="right" class="shade_calc_foreign_py" colspan="1" id="tcf8096"><span id="reff8096" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">26,857,225</span></td><td align="right" class="shade_calc_foreign_py" colspan="1" id="tcf8097"><span id="reff8097" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">9,674,556</span></td><td align="right" class="shade_calc_foreign_py" colspan="1" id="tcf8098"><span id="reff8098" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">1,493,584</span></td><td align="left" class="shade" id="tc51"><span> </span></td><td align="right" class="shade_calc_foreign_py" colspan="1" id="tcf8099"><span id="reff8099" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">3,253,973</span></td><td align="right" class="shade_calc_foreign_py" colspan="1" id="tcf8100"><span id="reff8100" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">616,159</span></td><td align="left" class="shade" id="tc52"><span> </span></td>
+</tr>
+</tbody></table><table border="0">
+<tbody><tr id="trHiddenFields">
+<td id="tcHiddenHeader"></td>
+</tr>
+</tbody></table></td>
+</tr><tr valign="top">
+<td><hr/><div style="PAGE-BREAK-AFTER:always; height:30px"> </div></td>
+</tr><tr valign="top">
+<td><table border="0" cellpadding="0" cellspacing="0" class="shade" width="100%"><tbody><tr><td align="left" width="60%">Institution:  (220181) </td><td align="right">User ID: super1</td></tr></tbody></table></td>
+</tr><tr class="pagetitle" valign="top">
+<td align="center">Part H - Value of Endowment Assets</td>
+</tr><tr valign="top">
+<td><input id="hidDataChanged" name="hidDataChanged" type="hidden"/><table border="0" width="100%">
+<tbody><tr align="left" valign="top">
+<td align="center" class="heading" colspan="4" id="tc1"><span><b>Fiscal Year 2006</b> <br/>Report in whole dollars only</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc2"><span><b>Line No.</b></span></td><td align="center" class="shade" id="tc3"><span><b>Value of <a href="javascript:openglossary(197)">Endowment Assets</a></b></span></td><td align="center" class="shade" id="tc4"><span><a href="javascript:openglossary(383)"><b>Market Value</b></a></span></td><td align="center" class="shade" id="tc5"><span><b>Prior Year Amounts</b></span></td>
+</tr><tr>
+<td align="left" class="shade" id="tc6"><span> </span></td><td align="left" class="shade" id="tc7"><span> </span></td><td align="center" class="shade" id="tc8"><span></span></td><td align="left" class="shade" id="tc9"><span> </span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc10"><span>01</span></td><td align="left" class="shade" id="tc11"><span>Value of<a href="javascript:openglossary(197)"> endowment assets</a> at the beginning of the fiscal year</span></td><td align="right" class="shade" id="tcf14243"><input id="tbf14243" maxlength="15" name="tbf14243" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="15,940,978"/></td><td align="right" class="shade_calc_foreign_py" id="tcf14247"><span id="reff14247" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">14,851,593</span></td>
+</tr><tr>
+<td align="center" class="shade" id="tc12"><span>02</span></td><td align="left" class="shade" id="tc13"><span>Value of <a href="javascript:openglossary(197)">endowment assets</a> at the end of the fiscal year</span></td><td align="right" class="shade" id="tcf14244"><input id="tbf14244" maxlength="15" name="tbf14244" readonly="readonly" style="text-align:right;padding-right:5px;" type="text" value="16,025,093"/></td><td align="right" class="shade_calc_foreign_py" id="tcf14248"><span id="reff14248" style="padding-right:5px;padding-left:2px;font-weight:bold;font-size:0.9em">15,940,978</span></td>
+</tr>
+</tbody></table></td>
+</tr><tr valign="top">
+<td><hr/><div style="PAGE-BREAK-AFTER:always; height:30px"> </div></td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+<tr>
+<td align="left">
+</td>
+</tr>
+<tr>
+<td>
+</td>
+</tr>
+<tr>
+<td> </td>
+</tr>
+<tr>
+<td align="left">
+<table align="left" border="0" cellpadding="0" cellspacing="0" id="Table2" width="650">
+<tbody><tr>
+<td align="center">
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+</tbody></table></div></div>
+</div>
+</form>
+<div class="top"><a href="#top">Back to top</a></div>
+</body></html>

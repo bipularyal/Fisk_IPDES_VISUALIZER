@@ -1,0 +1,1994 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>
+	Reported Data
+</title>
+<style>
+        .page-header {
+            font-size: 16px;
+        }
+
+        @media print
+        {    
+            .page-header {
+                display: none;
+            }
+
+            .page-header-wrapper {
+                display: none;
+            }
+        }
+
+        select {
+            padding: 4px 4px;
+            font-size: 15px;
+            border-radius: 6px;
+        }
+
+        .mr-2 {
+            margin-right: 0.5em;
+        }
+
+        .mr-4 {
+            margin-right: 1em;
+        }
+
+        .mr-8 {
+            margin-right: 2em;
+        }
+
+        .btn {
+            border: 1px solid #999;
+            padding: 1px 10px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .loading-data {
+            margin: 20px auto 0 auto;
+            width: 150px;
+            text-align: center;
+        }
+
+        #top {
+            position: relative;
+            top: -100px;
+        }
+
+        .top {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            padding: 5px 5px;
+            background-color: #eee;
+            text-align: center;
+        }
+
+        .top a:link,
+        .top a:visited,
+        .top a:hover {
+            text-decoration: none;
+            color: #333;
+        }
+
+        .no-survey-found {
+            background-color: #f7f7f7;
+            padding: 20px 20px;
+            font-size: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .no-survey-found.show {
+            display: block;
+        }
+
+        #survey_content {
+            border:0px solid red;
+            margin-top: 20px;
+            padding-top: 10px;
+        }
+        .note-message {
+            padding: 8px 12px;
+            background-color: #fcfbec;
+            border:1px solid #c6c4a5;
+            border-radius:4px;
+            display:none;
+            font-size:13px;
+        }
+        .note-message.show {
+            display: block;
+        }
+    </style>
+<script src="scripts/jquery-3.6.0.js" type="text/javascript"></script>
+<script>
+        let year = 2014;
+        let prevYear = 2014;
+        let unitId = 220181;
+        let surveyNumber = 1;
+
+        function removeFacsimileStyleFiles() {
+            $('[data-year="2020"]').remove();
+            $('[data-year="2006"]').remove();
+            $('[data-year="2005"]').remove();
+            $('[data-year="20002004"]').remove();
+        }
+
+        function addFacsimileStyleFile() {
+            // update year
+            if (year >= 2020) {
+                addCssFile('facsimile/assets/css/styles.css', '2020');
+            } else if (year >= 2000 && year <= 2004) {
+                addCssFile('styles/fm_style00_04.css', '20002004');
+                addCssFile('styles/fm_style00_04_fixes.css', '20002004');
+            } else if (year === 2005) {
+                addCssFile('styles/fm_style05.css', '2005');
+            }
+            else if (year > 2005) {
+                addCssFile('styles/facsimile.css', '2006');
+            }
+        }
+
+        function addCssFile(fileName, dataYearAttr) {
+            var cssRef = document.createElement("link");
+            cssRef.setAttribute("rel", "stylesheet");
+            cssRef.setAttribute("type", "text/css");
+            cssRef.setAttribute("href", fileName);
+            cssRef.setAttribute('data-year', dataYearAttr);
+            document.getElementsByTagName("head")[0].appendChild(cssRef)
+        }
+
+        function loadContent() {
+            $('#survey_content').html('<div class="loading-data"><h2>Loading data...</h2></div>');
+            $('.no-survey-found').removeClass('show');
+            $('#data-revised-note').removeClass('show');
+            $('#data-not-revised-note').removeClass('show');
+           
+            $.ajax({
+                url: 'FacsimileView.aspx?action=data&year=' + year + '&prevYear=' + prevYear + '&unitId=' + unitId + '&surveyNumber=' + surveyNumber,
+                type: "GET",
+                cache: false,
+                success: function (data) {
+                    prevYear = year;
+                    var json = JSON.parse(data);
+                    $('#survey_content').html(json.SurveyHtml);
+
+                    //***************
+                    $('#data-not-revised-note').removeClass('show');
+                    $('#latest-year-data-not-revised-note').removeClass('show');
+                    $('#pre-2014-data-not-revised-note').removeClass('show');
+                    $('#data-revised-note').removeClass('show');
+
+                    // Message about revised data:
+                    if (year >= 2022 ) {
+                        $('#latest-year-data-not-revised-note').addClass('show');
+                    }
+                    else if (year >= 2014 && year<=2021) {
+
+                        if (json.DataRevised === true)
+                            $('#data-revised-note').addClass('show');
+                        else //if (json.DataRevised === false)
+                            $('#data-not-revised-note').addClass('show');
+                    }
+                    else
+                        $('#pre-2014-data-not-revised-note').addClass('show');
+
+
+                    const container = document.getElementById('survey_content');
+
+                    // Get all buttons within the container
+                    const buttons = container.querySelectorAll('button');
+
+                    // Loop through each button and disable it
+                    buttons.forEach(button => {
+                        button.disabled = true;
+                    });
+
+
+                    if (json.Surveys) {
+                        // we need to create new values in Survey dropdown
+                        let dropdown = $('#select-surveys')[0];
+                        // first remove all elements
+                        while (dropdown.options.length > 0)
+                            dropdown.remove(0);
+
+                        let surveyNumbers = Object.keys(json.Surveys);
+                        let surveyNumberExistsInDifferentYear = false;
+                        for (let i = 0; i < surveyNumbers.length; i++) {
+                            let opt = document.createElement('option');
+                            opt.value = surveyNumbers[i];
+                            if (surveyNumbers[i] == surveyNumber) {
+                                surveyNumberExistsInDifferentYear = true;
+                                opt.selected = true;
+                            }
+                            opt.innerHTML = json.Surveys[surveyNumbers[i]];
+                            dropdown.appendChild(opt);
+                        }
+                        // if survey does not exists, add empty <option>
+                        if (surveyNumberExistsInDifferentYear == false) {
+                            let opt = document.createElement('option');
+                            opt.value = '';
+                            opt.innerHTML = 'Select a survey';
+                            opt.selected = true;
+                            dropdown.add(opt, dropdown.options[0]);
+                            $('.no-survey-found').addClass('show');
+                            $('#data-not-revised-note').removeClass('show');
+                        }                       
+                            
+                    }
+
+                    // Update url to reflect selected year/survey
+                    //let newUrl = new URL(window.location.href);
+                    //let params = new URLSearchParams(newUrl.search);
+                    
+                   
+                    //params.set('year', year);
+                    //params.set('surveyNumber', surveyNumber)
+
+
+                    let searchParams = new URLSearchParams(window.location.search);
+
+                    searchParams.delete("surveynumber");
+                    searchParams.delete("year");
+                    searchParams.set('year', year);
+                    searchParams.set('surveyNumber', surveyNumber)
+
+                    if (window.history.replaceState) {
+                        const url = window.location.protocol
+                            + "//" + window.location.host
+                            + window.location.pathname
+                            + "?"
+                            + searchParams.toString();
+
+                        window.history.replaceState({
+                            path: url
+                        }, "", url)
+                    }
+
+
+                },
+                error: function (xhr, err) {
+                    console.log("Status: " + xhr.status + "\nResponse Text:" + xhr.responseText);
+                }
+            });
+        }
+
+        function selectSurvey(ev) {
+            surveyNumber = ev.target.value;
+            loadContent();
+        }
+
+        function selectYear(ev) {
+            year = +ev.target.value;
+            loadContent();
+
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+        }
+
+        function updateURLParameter(url, param, paramVal) {
+            let TheAnchor = null;
+            let newAdditionalURL = "";
+            let tempArray = url.split("?");
+            let baseURL = tempArray[0];
+            let additionalURL = tempArray[1];
+            let temp = "";
+
+            if (additionalURL) {
+                var tmpAnchor = additionalURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+                if (TheAnchor)
+                    additionalURL = TheParams;
+
+                tempArray = additionalURL.split("&");
+
+                for (var i = 0; i < tempArray.length; i++) {
+                    if (tempArray[i].split('=')[0] != param) {
+                        newAdditionalURL += temp + tempArray[i];
+                        temp = "&";
+                    }
+                }
+            }
+            else {
+                var tmpAnchor = baseURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+
+                if (TheParams)
+                    baseURL = TheParams;
+            }
+
+            if (TheAnchor)
+                paramVal += "#" + TheAnchor;
+
+            var rows_txt = temp + "" + param + "=" + paramVal;
+            return baseURL + "?" + newAdditionalURL + rows_txt;
+        }
+
+        
+
+        $(document).ready(function () {
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+            loadContent();
+        });
+
+        function printPage() {
+            window.print();
+        }
+    </script>
+<link data-year="2006" href="styles/facsimile.css" rel="stylesheet" type="text/css"/></head>
+<body>
+<div class="page-header-wrapper" style="background-color: #eee; padding: 18px 6px;">
+<div class="page-header" style="width: 90%; margin: 0 auto;">
+<div style="display: flex; align-items: center!important;">
+<div class="mr-4">Reported Data: Fisk University </div>
+<div class="mr-4">|</div>
+<div class="mr-2">Select year:</div>
+<div class="mr-4">
+<select onchange="selectYear(event)">
+<option value="2022">2022</option>
+<option value="2021">2021</option>
+<option value="2020">2020</option>
+<option value="2019">2019</option>
+<option value="2018">2018</option>
+<option value="2017">2017</option>
+<option value="2016">2016</option>
+<option value="2015">2015</option>
+<option selected="" value="2014">2014</option>
+<option value="2013">2013</option>
+<option value="2012">2012</option>
+<option value="2011">2011</option>
+<option value="2010">2010</option>
+<option value="2009">2009</option>
+<option value="2008">2008</option>
+<option value="2007">2007</option>
+<option value="2006">2006</option>
+<option value="2005">2005</option>
+<option value="2004">2004</option>
+<option value="2003">2003</option>
+<option value="2002">2002</option>
+<option value="2001">2001</option>
+</select>
+</div>
+<div class="mr-2">Select survey:</div>
+<div class="mr-2">
+<select id="select-surveys" onchange="selectSurvey(event)">
+<option selected="" value="1">Institutional Characteristics</option>
+<option value="12">Admissions and Test Scores</option>
+<option value="15">Fall Enrollment</option>
+<option value="14">12-Month Enrollment</option>
+<option value="3">Completions</option>
+<option value="8">Graduation Rates</option>
+<option value="7">Student Financial Aid and Net Price</option>
+<option value="6">Finance</option>
+<option value="9">Human Resources</option>
+<option value="16">Academic Libraries</option>
+</select>
+</div>
+<div style="flex: 1 1 auto!important;"> </div>
+<div>
+<button class="mr-4 btn">
+<img onclick="printPage()" src="images/printer-svgrepo-com.svg" style="width: 15px"/>
+</button>
+<a href="Facsimile.aspx?unitId=220181">
+<img src="images/icon_close.svg" style="width: 25px"/>
+</a>
+</div>
+</div>
+</div>
+</div>
+<a id="top"></a>
+<form action="./facsimileView.aspx?unitid=220181&amp;surveynumber=1&amp;year=2014&amp;goToReportId=6" id="form1" method="post" name="form1">
+<div>
+<input id="__VIEWSTATE" name="__VIEWSTATE" type="hidden" value="/wEPDwUJNDk4MDAyNjQ0ZGQ1Rt5I0VdqjyBZxpj37FRHeGkbkoRpCmohM64NK8Nn3w=="/>
+</div>
+<div>
+<input id="__VIEWSTATEGENERATOR" name="__VIEWSTATEGENERATOR" type="hidden" value="3C3AC055"/>
+</div>
+<div style="width: 1000px; margin: 0 auto;">
+<div class="note-message show" id="data-not-revised-note">Note: Institution did NOT submit revisions through the Prior Year Data Revision System for selected collection year and survey.</div>
+<div class="note-message" id="data-revised-note">Note: Reported data includes revisions made through the Prior Year Data Revision System for  selected collection year and survey.</div>
+<div class="note-message" id="pre-2014-data-not-revised-note">Note: Reported data do not include revisions made through the Prior Year Data Revision System for any institution prior to collection year 2014.</div>
+<div class="note-message" id="latest-year-data-not-revised-note">Note: Revisions made through the Prior Year Data Revision System are not available for the selected collection year.</div>
+<div class="no-survey-found">
+                Please select survey from dropdown above
+            </div>
+<div id="survey_content"><div class="facsimile_assets"><table border="0" cellpadding="0" cellspacing="0" id="Table3" width="650">
+<tbody><tr>
+<td align="left">
+<table border="0" cellpadding="0" cellspacing="0" id="tblHeader" width="650">
+<tbody><tr>
+<td colspan="2" style="line-height:20px; height:30px; vertical-align:middle;">
+<div align="center" class="pagetitle" style="height:100%; padding-top:10px;">
+<span id="lblSurveyName">IC Header 2014-15</span>
+</div>
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part A - Educational Offerings</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3">1. <b>Which of the following types of instruction/programs are offered by your institution?  [Check one or more]</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3"><i>If your institution does not offer occupational, academic or continuing professional programs, you are not expected to complete this or any other IPEDS survey.<i></i></i></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">   </td><td class="sc-tb-c" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(13)" style="color:Black"></a><a href="javascript:openglossary(423)">Occupational</a>, may lead to a certificate, degree, or other formal award</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(19)" style="color:Black"></a><a href="javascript:openglossary(19)">Academic</a>, leading to a certificate, degree, or diploma</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(139)">Continuing professional</a> (postbaccalaureate only)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Recreational or <a href="javascript:openglossary(69)">avocational (leisure) programs</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(35)">Adult basic</a> or remedial instruction or high school equivalency</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Secondary (high school)</td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part B - Organization -  Control and Levels</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">1. <b>What is your institutional <a href="javascript:openglossary(785)"> control</a> or <a href="javascript:openglossary(817)">affiliation</a>?</b> <br/><i>Be sure to select the correct control for your institution. Errors on this question have an impact throughout the IPEDS surveys, in federal reporting, in net price groupings, and on your institutions appearance to students. If you reported incorrectly in a previous year, please contact the Help Desk at 877.225.2568 to correct the error.</i></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">   </td><td class="sc-tb-r"> <img src="images/radio_off.gif"/></td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(531)">Public</a> - Select primary and or secondary controls below</td><td class="sc-tb-l" colspan="2"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2">Primary control</td><td class="sc-tb-l" colspan="2">Secondary control (if applicable)                                                       </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"> Select One</td><td class="sc-tb-l" colspan="2" disabled="disabled"> Select One</td>
+</tr>
+<tr class="sc-row-alt" disabled="disabled">
+<td class="sc-tb-l"> </td><td class="sc-tb-r"> <img src="images/radio_off.gif"/></td><td class="sc-tb-l" colspan="4"><a href="javascript:openglossary(507)" style="color:Black">Private for-profit</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r"> <img src="images/radio_on.gif"/></td><td class="sc-tb-l" colspan="4"><a href="javascript:openglossary(513)">Private not-for-profit</a> independent (no religious affiliation)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r"> <img src="images/radio_off.gif"/></td><td class="sc-tb-l" colspan="4"><a href="javascript:openglossary(513)">Private not-for-profit</a> religious affiliation - Select affiliation below</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="4"> Select One</td>
+</tr>
+<tr class="sc-row-alt" disabled="disabled">
+<td class="sc-tb-l" colspan="6"> </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="4">2. <b>What award levels are offered by your institution?  [Check all that apply]<b></b></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="4">When reporting award levels for sub baccalaureate certificates (levels 1, 2, and 4), <b>determine program length by the number of credit or contact hours</b>, NOT the academic year length in parentheses. The academic year length is meant only to provide context.
+<br/><br/>The 'Other' award level should not be used unless your program truly does not fit any of the other award levels. We expect very few institutions to fit the 'Other' category.
+<br/><br/>Even though Teacher Preparation certificate programs may require a bachelor's degree for admission, they are considered subbaccalaureate undergraduate programs.  Check the applicable award level 1, 2, or 4, depending on the length of the Teacher Preparation program.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">   </td><td class="sc-tb-l"><b>Award Level<b></b></b></td><td class="sc-tb-l"> </td><td class="sc-tb-c"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="3"><b>BELOW THE BACCALAUREATE:</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">1</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(491)"><b>Postsecondary award, certificate, or diploma of</b> (less than one academic year)</a> <br/>      <b>- less than 900 contact or clock hours,</b> or <br/>
+      <b>- less than 30 semester or trimester credit hours, </b>or <br/>
+      <b>- less than 45 quarter credit hours</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">2</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(487)"><b>Postsecondary award, certificate, or diploma of </b>(at least one but less than two academic years)</a> <br/>
+      <b>- at least 900 but less than 1800  contact or clock hours,</b> or <br/>
+      <b>- at least 30 but less than 60 semester or trimester credit hours,</b> or <br/>
+      <b>- at least 45 but less than 90 quarter credit hours</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">3</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(55)" style="color:Black"><b>Associate's degree</b></a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">4</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(489)"><b>Postsecondary award, certificate, or diploma of </b>(at least two but less than four academic years)</a> <br/>
+      <b>- 1800 or more contact or clock hours, </b>or <br/>
+      <b>- 60 or more semester or trimester credit hours,</b> or <br/>
+      <b>- 90 or more quarter credit hours</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="3"><b>BACCALAUREATE AND ABOVE:</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">5</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><b><a href="javascript:openglossary(77)">Bachelor's degree</a></b> or equivalent</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">6</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(481)" style="color:Black"><b>Postbaccalaureate certificate</b></a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">7</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(389)" style="color:Black"><b>Master's degree</b></a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">8</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(485)" style="color:Black"><b>Post-master's certificate</b></a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">17</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><b><a href="javascript:openglossary(941)">Doctor's degree - research/scholarship</a></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">18</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><b><a href="javascript:openglossary(942)">Doctor's degree - professional practice</a></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">19</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(943)" style="color:Black"><b>Doctor's degree - other</b></a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">12</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><b>Other</b> (specify in box below)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="5">You may use the space below to <b>provide context</b> for the data you've reported above.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5" nowrap="true"> <textarea cols="54" id="cvt_f10767" name="cvt_f10767" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part B - Organization - Calendar System </div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3"><b><i>Your response to the next question determines how your institution reports Institutional Characteristics student charges data in the fall, Student Financial Aid data in the winter, and Graduation Rates data in the winter. <font color="red">It also impacts the net price calculation in the Student Financial Aid survey.</font></i></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3"><i>If the calendar system differs from prior year or requires a change, please contact the Help Desk at 877.225.2568.</i></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3"><img id="screenTip_27" src="images/icon_tip.gif" style="border:none; vertical-align:top;"/> 3. <b>What is the predominant <a href="javascript:openglossary(97)">calendar system</a> at the institution?  [Choose one]<b></b></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">   </td><td class="sc-tb-l" colspan="2"><b><br/>Academic Year Reporting Method </b>(Standard academic terms)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><i>Selecting one of the following calendar types determines that your institution will provide Student Financial Aid and Graduation Rates data based on a <a href="javascript:openglossary(219)">FALL COHORT</a> and student charges data for a full <a href="javascript:openglossary(19)"> ACADEMIC YEAR</a>. </i></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r"> <img src="images/radio_on.gif"/></td><td class="sc-tb-l"><a href="javascript:openglossary(589)" style="color:Black">Semester</a>                                                                                                    </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r"> <img src="images/radio_off.gif"/></td><td class="sc-tb-l"><a href="javascript:openglossary(537)" style="color:Black">Quarter</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r"> <img src="images/radio_off.gif"/></td><td class="sc-tb-l"><a href="javascript:openglossary(667)" style="color:Black">Trimester</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r"> <img src="images/radio_off.gif"/></td><td class="sc-tb-l"><a href="javascript:openglossary(247)" style="color:Black">4-1-4 or similar plan</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><b>Program Reporting Method </b>(Other calendar system)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><i>Selecting one of the following calendar types determines that your institution will provide  Student Financial Aid and Graduation Rates data based on a <a href="javascript:openglossary(261)">FULL-YEAR COHORT</a>, and student charges data by <a href="javascript:openglossary(515)">PROGRAM</a>.</i></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r"> <img src="images/radio_off.gif"/></td><td class="sc-tb-l"><a href="javascript:openglossary(175)" style="color:Black">Differs by program</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r"> <img src="images/radio_off.gif"/></td><td class="sc-tb-l"><a href="javascript:openglossary(141)">Continuous basis</a> (every 2 weeks, monthly, or other period)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><b>Hybrid/Mixed Reporting Method </b>(Standard academic terms, other academic calendar)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><i>Selecting the hybrid calendar type determines that your institution will provide Student Financial Aid and Graduation Rates data based on a <a href="javascript:openglossary(261)">FULL-YEAR COHORT</a>, and student charges data for a full <a href="javascript:openglossary(19)"> ACADEMIC YEAR</a>.    </i></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r"> <img src="images/radio_off.gif"/></td><td class="sc-tb-l">Hybrid  (<a href="javascript:openglossary(717)">Other academic calendar</a>)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"> </td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part B - Organization - Student Enrollment</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="11">4. <b>Does your institution enroll any of the following types of students?</b><br/>
+<i>Include all levels offered by your institution, <font color="red">even if there are no students currently enrolled at that level.</font></i></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="11"><i>Responses to this question determine which screens will be generated for reporting academic year tuition charges, and for reporting Fall Enrollment during the spring collection. Additionally, checking <b>Yes</b> for full-time, first-time, degree/certificate-seeking undergraduate students determines that your institution must report cost of attendance data (on the IC component) and Student Financial Aid data for these students.</i></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l"> </td><td class="sc-h sc-tb-c" colspan="4"><b><a href="javascript:openglossary(259)">Full-time<b></b></a></b></td><td class="sc-h sc-tb-c" colspan="4"><b><a href="javascript:openglossary(469)">Part-time<b></b></a></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(677)" style="color:Black"><b>Undergraduate<b> (academic or occupational programs)</b></b></a></td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">No</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Yes</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">No</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Yes</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(241)" style="color:Black"></a><ul><a href="javascript:openglossary(241)" style="color:Black"><b>First-time, degree/certificate-seeking undergraduate<b></b></b></a></ul></td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">No</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Yes</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">No</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Yes</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(275)" style="color:Black"><b>Graduate (not including doctor's-professional practice)<b></b></b></a></td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">No</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Yes</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">No</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Yes</td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="5">6. <b>For Fall 2008, did your institution have any <a href="javascript:openglossary(259)">full-time</a>, <a href="javascript:openglossary(241)">first-time</a> degree/certificate-seeking students enrolled in programs at the baccalaureate level or below?</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5"><i>If you answer <b>Yes</b> to this question, you will be required to provide Graduation Rates data for the 2008-09 cohort in the winter collection.  If you answer <b>No</b> to this question, indicate the reason you are not required to report Graduation Rates for the cohort year requested.</i></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5"><i>If you reported any full-time, first-time degree/certificate-seeking undergraduates on the 2008-09 Enrollment survey, the data will be preloaded below.</i></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+</td><td class="sc-tb-l" colspan="3">No</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+</td><td class="sc-tb-l" colspan="2">This institution did not enroll full-time, first-time (undergraduate) students.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+</td><td class="sc-tb-l" colspan="2">This institution did not offer programs at or below the baccalaureate level.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+</td><td class="sc-tb-l" colspan="2">This institution was not in operation in 2008-09.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+</td><td class="sc-tb-l" colspan="3">Yes</td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-tb-l" colspan="3"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><b>Full-time, first-time degree/certificate-seeking students  from 2008-09 Enrollment survey (GR <a href="javascript:openglossary(119)">Cohort</a>)<b></b></b></td><td class="sc-tb-l"> </td><td class="sc-dbcalc-f-py sc-tb-r"> 113</td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part B - Multi-institution or Multi-campus Organization</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3">7. <b> Multi-institution or multi-campus organization</b><br/><br/>Is the institution part of a multi-institution or multi-campus organization that owns, governs, or controls the institution? <font color="red">Do NOT indicate a religious affiliation here; that information is collected separately.</font></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3"><i>If you need assistance or need to make changes, contact the Help Desk at 1-877-225-2568. You will not be able to lock your submission if this question is blank.</i></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-r"> <img src="images/radio_on.gif"/></td><td class="sc-tb-l" colspan="2">No, this institution <b>IS NOT</b> a part of a multi-institution or multi-campus organization that owns, governs, or controls the institution.                                        </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-r"> <img src="images/radio_off.gif"/></td><td class="sc-tb-l" colspan="2">Yes, this institution <b>IS</b> a part of a multi-institution or multi-campus organization that owns, governs, or controls the institution.                                        </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">  </td><td class="sc-tb-l">                                          </td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part C - Other Survey Screening Questions - Library Expenditures</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l">1. <b>What were your annual total <a href="javascript:openglossary(1040)">library expenditures</a> for Fiscal Year 2014? </b></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1500014" name="tb_f1500014" style="width:90px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">310,117</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><i>Indicate the total library expenditures at your institution for Fiscal Year 2014. Fiscal year 2014 is defined as the most recent 12-month period that ends before October 1, 2014, that corresponds to the institution’s fiscal year.
+<br/>
+If your institution does not have any library expenditures, no additional reporting is necessary. If library expenditures are greater than 0, you will be required to report additional information on your library collections in the Academic Libraries component. If the amount reported is greater than 100,000, additional screens will be required in the Academic Libraries component for reporting additional expenditure information.
+If the library expenditure for your institution has not been calculated, put the best estimate using totals from the previous year plus projected changes.</i></td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part C - Other Survey Screening Questions - Open Admission</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3">2. <b>Does your institution have an <a href="javascript:openglossary(435)">open admission policy</a> for all or most entering <a href="javascript:openglossary(241)">first-time</a> degree/certificate-seeking  <a href="javascript:openglossary(677)">undergraduate</a>-level students?</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3">If the only requirement for admission is a high school diploma or GED/other equivalent, your institution is still considered open admission. Institutions that require only an Ability to Benefit or similar test beyond the diploma/equivalent, and only reject a very small number of students based on the test, are also considered open admission.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3"><img id="screenTip_29" src="images/icon_tip.gif" style="border:none; vertical-align:top;"/> If your institution does not have an open admission policy, you will be required to report Admissions component regarding your admissions procedures and admissions yield.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">   </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Yes</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">No                                                                                </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="3"><img alt="These context notes will be posted on the College Navigator." src="images/icon_navigator.gif" style="border:none"/> You may use the space below to <b>provide context</b> for the data you've reported above.  These context notes will be posted on the College Navigator website, and should be written to be understood by students and parents.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3" nowrap="true"> <textarea cols="54" id="cvt_f11118" name="cvt_f11118" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div>
+<table border="0" cellpadding="4px" cellspacing="0" class="shade" width="650"><tbody><tr><td align="left" width="500">Institution: Fisk University (220181) </td><td align="right">User ID: inovas1</td></tr></tbody></table>
+</div><div style="padding:4px;width:650px;border:none;font-weight:bold;">Summary</div>
+<div>
+<style type="text/css">
+    table.grid
+    {
+        border-collapse: collapse;
+    }
+    table.grid td
+    {
+        border: 1px solid #B5C7CD;
+        padding: 4px;
+    }
+    table.grid tr.alt td
+    {
+        background-color: #F3F5F7;
+    }
+    table.grid th
+    {
+        background-color: #D2DFE5;
+        border: 1px solid #B5C7CD;
+        padding: 4px;
+        text-align:center;
+    }
+    td.number
+    {
+        text-align: right;
+    }
+    td.number span
+    {
+        margin-right: 10px;
+    }
+</style>
+<div style="padding-top:20px; text-align:center; font-family:Verdana; font-size:14px; font-weight:bold; color:#336699;">
+Institutional Characteristics Header Component Summary
+</div>
+<p id="header1">
+    IPEDS collects important information regarding your institution.  All data reported in IPEDS survey components
+    become available in the IPEDS Data Center and appear as aggregated data in various Department of Education
+    reports. Additionally, some of the reported data appears specifically for your institution through the
+    College Navigator website and is included in your institution’s Data Feedback Report (DFR). The purpose of
+    this summary is to provide you an opportunity to view some of the data that, when accepted through the IPEDS
+    quality control process, will appear on the College Navigator website and/or your DFR. College Navigator is
+    updated approximately three months after the data collection period closes and Data Feedback Reports will be
+    available through the <a href="http://nces.ed.gov/ipeds/datacenter/" target="_blank">Data Center</a> and sent to your institution’s CEO in November 2015.
+</p>
+<p id="header2">
+    Please review your data for accuracy.  If you have questions about the data displayed below after reviewing the
+    data reported on the survey screens, please contact the IPEDS Help Desk at: 1-877-225-2568.
+</p>
+<table class="grid" style="width:100%">
+<tbody><tr>
+<th class="" colspan="3" style="text-align:center; font-family:Verdana; font-size:12px; font-weight:bold; color:#336699;">GENERAL INFORMATION</th>
+</tr>
+<tr class="">
+<td class="" style="width: 200px;">Educational Offerings</td>
+<td class="" colspan="2"><span id="offeringLabel">Occupational<br/> Academic<br/> Continuing Professional</span></td>
+</tr>
+<tr class="alt">
+<td class="">Control</td>
+<td class="" colspan="2"><span id="controlLabel">Private not-for-profit independent (no religious affiliation)</span><br/>
+</td>
+</tr>
+<tr class="">
+<td class="">Award Levels Offered</td>
+<td class="" colspan="2"><span id="awardLabel">Bachelor's degree<br/> Postbaccalaureate certificate<br/> Master's degree</span></td>
+</tr>
+<tr class="alt">
+<td class="">Reporter Type</td>
+<td class="" colspan="2"><span id="reporterLabel">Academic</span></td>
+</tr>
+<tr class="">
+<td class="">Calendar System</td>
+<td class="" colspan="2"><span id="calendarLabel">Semester</span></td>
+</tr>
+<tr class="alt">
+<td class="">Levels of Enrollment Offered</td>
+<td class="" colspan="2"><span id="enrollmentLabel">Full-time Undergraduate<br/> Full-time First-time, degree/certificate-seeking Undergraduate<br/> Full-time Graduate (not including doctor's professional)<br/> Part-time Undergraduate<br/> Part-time First-time, degree/certificate-seeking Undergraduate<br/> Part-time Graduate (not including doctor's professional)</span></td>
+</tr>
+<tr class="">
+<td class="">System</td>
+<td class="" colspan="2"><span id="systemLabel">No system</span></td>
+</tr>
+</tbody></table>
+</div><div style="display:block; page-break-before:always;"> </div>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div style="text-align:left">
+                    
+        		                  
+                    
+        </div>
+<br/><br/> <table border="0" cellpadding="0" cellspacing="0" id="Table3" width="650">
+<tbody><tr>
+<td align="left">
+<table border="0" cellpadding="0" cellspacing="0" id="tblHeader" width="650">
+<tbody><tr>
+<td colspan="2" style="line-height:20px; height:30px; vertical-align:middle;">
+<div align="center" class="pagetitle" style="height:100%; padding-top:10px;">
+<span id="lblSurveyName">Institutional Characteristics 2014-15</span>
+</div>
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part A - Mission Statement and Distance Education</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b><font style="color:#cc0000">Data changed on this page cannot be saved and therefore will not be changed in the Prior Year system.</font></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="4">1. <b>Provide the institution's mission statement <i>or</i> a web address (URL) where the mission statement can be found.  Typed statements are limited to 2,000 characters or less.  The mission statement will be available to the public on College Navigator.</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="4"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" rowspan="2">Mission Statement URL:</td><td class="sc-tb-r" rowspan="2"> </td><td class="sc-tb-l" nowrap="true"> <input class="sc-text-tbn" id="tb_f13907" name="tb_f13907" readonly="readonly" style="width:420px;background-color:#E7EBF0;" type="text" value=""/></td><td class="sc-tb-l" rowspan="2"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><b><font color="red">Please begin URL with "http://" or "https://"</font></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="4">Mission Statement</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3" nowrap="true"> <textarea cols="54" id="cvt_f13908" name="cvt_f13908" readonly="readonly" rows="21" style="background-color:#E7EBF0;height:320px;word-wrap:break-word;white-space:normal;" value="Fisk University produces graduates from diverse backgrounds with the integrity and intellect required for substantive contributions to society.  Our curriculum is grounded in the liberal arts, and our faculty and administrators emphasize the discovery and advancement of knowledge through research in the natural and social sciences, business and the humanities.  We are committed to the success of scholars and leaders with global perspective.">Fisk University produces graduates from diverse backgrounds with the integrity and intellect required for substantive contributions to society.  Our curriculum is grounded in the liberal arts, and our faculty and administrators emphasize the discovery and advancement of knowledge through research in the natural and social sciences, business and the humanities.  We are committed to the success of scholars and leaders with global perspective.</textarea></td><td class="sc-tb-l"> </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="3"><img id="screenTip_25" src="images/icon_tip.gif" style="border:none; vertical-align:top;"/> 2. Are all the programs at your institution offered exclusively via <a href="javascript:openglossary(713)">distance education</a>?</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">   </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Yes</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">No                                                                                </td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part B - Services and Programs for Servicemembers and Veterans</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3">1. <b>Which of the following are available to veterans, military servicemembers, or their families?</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">   </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(1044)">Yellow Ribbon Program </a>(officially known as Post-9/11 GI Bill, Yellow Ribbon Program)                    </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(1047)" style="color:Black">Credit for military training</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Dedicated point of contact for support services for veterans, military servicemembers, and their families</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Recognized student veteran organization</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Member of <a href="javascript:openglossary(1050)">Servicemembers Opportunity Colleges</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">None of the above</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="3"><img alt="These context notes will be posted on the College Navigator." src="images/icon_navigator.gif" style="border:none"/> You may use the space below to <b>provide context</b> for the data you've reported above.  These context notes will be posted on the College Navigator website, and should be written to be understood by students and parents.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3" nowrap="true"> <textarea cols="54" id="cvt_f1100359" name="cvt_f1100359" readonly="readonly" rows="21" style="background-color:#E7EBF0;height:320px;word-wrap:break-word;white-space:normal;" value="MyCareerSkill.org is a distance learning initiative developed through a partnership between Fisk University and MedCerts LLC.  These career certification training programs are offered as non-credit continuing-education and do not lead to an academic degree.  This program is a MyCAA approved blended distance learning train you for a new career in Health Information Systems Administration. If you are a military spouse and qualify for MyCAA funding, your tuition could be 100% covered.">MyCareerSkill.org is a distance learning initiative developed through a partnership between Fisk University and MedCerts LLC.  These career certification training programs are offered as non-credit continuing-education and do not lead to an academic degree.  This program is a MyCAA approved blended distance learning train you for a new career in Health Information Systems Administration. If you are a military spouse and qualify for MyCAA funding, your tuition could be 100% covered.</textarea></td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part C -  Student Services - Special Learning Opportunities</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="8">1. <b>Does your institution accept any of the following? [Check all that apply]<b></b></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="8"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">   </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="6"><a href="javascript:openglossary(708)">Dual credit</a> (college credit earned while in high school)                    </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="6"><a href="javascript:openglossary(710)" style="color:Black">Credit for life experiences</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="6"><a href="javascript:openglossary(711)" style="color:Black">Advanced placement (AP) credits</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="6">None of the above</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="8"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="8">2. <b>What types of special learning opportunities are offered by your institution? [Check all that apply]<b></b></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">   </td><td class="sc-tb-l" colspan="7"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="6">ROTC</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Army               </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Navy               </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Air Force               </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="6"><a href="javascript:openglossary(714)" style="color:Black">Study abroad</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="6"><a href="javascript:openglossary(715)" style="color:Black">Weekend/evening college</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="6"><a href="javascript:openglossary(716)">Teacher certification</a> (for the elementary, middle school/junior high, or secondary level)<br/><br/>
+Do <b>not</b> include certifications to teach at the postsecondary level.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="5">Students can complete their preparation in certain areas of specialization</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="5">Students must complete their preparation at another institution for certain areas of specialization</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="5">This institution is approved by the state for the initial certification or licensure of teachers</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="6">None of the above</td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="2">3. <b>If your institution grants a bachelor's degree or higher but does not offer a full 4-year program of study at the undergraduate level, how many years of completed college-level work are required for entrance?<b></b></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Number of years</td><td class="sc-tb-l" nowrap="true">                     Select One</td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part C -  Student Services - Distance Opportunities</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3">4.<b> Which of the following selected student services are offered by your institution? [Check all that apply]<b></b></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">   </td><td class="sc-tb-l" colspan="2"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(547)" style="color:Black">Remedial services</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Academic/career <a href="javascript:openglossary(149)">counseling services</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(195)" style="color:Black">Employment services for current students</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l"><a href="javascript:openglossary(479)" style="color:Black">Placement services for program completers</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">On-campus <a href="javascript:openglossary(165)">day care</a> for children of students</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">None of the above</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="3">5. <b>Does your institution have its own <a href="javascript:openglossary(359)">library</a> or are you financially supporting a <a href="javascript:openglossary(593)">shared library</a> with another <a href="javascript:openglossary(495)">postsecondary education institution</a>?<b></b></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Have our own library</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Do not have our own library but contribute financial support to a shared library</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Neither of the above</td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="5">6. <b>Indicate whether or not any of the following alternative tuition plans are offered by your institution.</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+</td><td class="sc-tb-l" colspan="3">No</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+</td><td class="sc-tb-l" colspan="3">Yes</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(949)">Tuition guarantee</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(950)">Prepaid tuition plan</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(951)">Tuition payment plan</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+</td><td class="sc-tb-l" colspan="2">Other (specify in box below)</td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3"><img id="screenTip_26" src="images/icon_tip.gif" style="border:none; vertical-align:top;"/> 7. <b>Please indicate at what level(s) your institution offers <a href="javascript:openglossary(713)">distance education </a>opportunities (courses and/or programs).</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">   </td><td class="sc-tb-l" colspan="2"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Undergraduate</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Graduate</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">The institution does not offer distance education opportunities</td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="5"><img alt="These context notes will be posted on the College Navigator." src="images/icon_navigator.gif" style="border:none"/> You may use the space below to <b>provide context</b> for the <b>alternative tuition plans</b> you've reported above.  These context notes will be posted on the College Navigator website, and should be written to be understood by students and parents.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5" nowrap="true"> <textarea cols="54" id="cvt_f1100016" name="cvt_f1100016" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part C - Disability Service</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="5"><b>Please indicate the percentage of all undergraduate students enrolled during fall 2013 who were formally registered as students with disabilities with the institution's office of disability services (or the equivalent office).</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">   </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">3 percent or less</td><td class="sc-tb-l" colspan="2"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">   </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">More than 3 percent:</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f200001" name="tb_f200001" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;"> </span></td><td class="sc-tb-l">%</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="5"><img alt="These context notes will be posted on the College Navigator." src="images/icon_navigator.gif" style="border:none"/> You may use the space below to <b>provide context</b> for the data you've reported above.  These context notes will be posted on the College Navigator website, and should be written to be understood by students and parents.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5" nowrap="true"> <textarea cols="54" id="cvt_f1100185" name="cvt_f1100185" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part D - Student Charges Questions</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b><font style="color:#cc0000">Data changed on this page cannot be saved and therefore will not be changed in the Prior Year system.</font></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="4">1. <b>Are all <a href="javascript:openglossary(259)">full-time</a>, <a href="javascript:openglossary(241)">first-time</a> degree/certificate-seeking students required to live on campus or in institutionally-controlled housing?<b></b></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="4"><i>If you answer <b>Yes</b> to this question, you will not be asked to report off-campus room and board in the price of attendance (D11).</i><br/><br/>
+<i>This is only a screening question, and your response does not show up on College Navigator.<br/><br/>
+<i>If you make any exceptions to this rule, and have even one first-time, full-time student living off-campus, please answer <b>No</b> so that this does not cause conflicts with the Student Financial Aid survey. Making changes to the SFA component is very difficult and may lead to inaccurate reporting for your institution.</i></i></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8acaca1e1e4e0e7dfe4dfb8acafadadb0a1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab4aaadabacb09baeb5aeabb5aeac9bcbc8')" style="border: none; padding:0px"><img name="2" src="images/stop3.gif" style="border: none"/></a>
+				 <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="2">No</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="2">Yes, and we do not make <b>ANY</b> (even one) exceptions to this rule</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="4">2. <b>Does your institution charge different <a href="javascript:openglossary(848)">tuition</a> for <a href="javascript:openglossary(303)">in-district</a>, <a href="javascript:openglossary(309)">in-state</a>, or <a href="javascript:openglossary(463)">out-of-state</a> students?<b></b></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="4"><i>If you answer <b>Yes</b> to this question, you will be expected to report tuition amounts for in-district, in-state, and out-of-state students.<br/><br/> Please only select <b>Yes</b> if you really charge different tuition rates, or you will be reporting the same numbers 3 times.</i></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="2">No</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="2">Yes</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="4">3. <b>Does your institution offer institutionally-controlled housing (either on or off campus)?</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="4"><i>If you answer <b>Yes</b> to this question, you will be expected to specify a housing capacity, and to report a room charge or a combined room and board charge (D10).</i></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="2">No</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="2">Yes</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-l" colspan="2">Specify <a href="javascript:openglossary(185)">housing capacity</a> for academic year 2014-15</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-l" colspan="2" nowrap="true"> <span class="sc-tbn" id="tb_f10868" name="tb_f10868" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">658</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="4">4. <b>Do you offer <a href="javascript:openglossary(87)">board</a> or meal plans to your students?</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="4"><i>If you answer <b>Yes</b> to this question, you will be expected to report a board charge or combined room and board charge (D10).</i></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="2">No</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="2">Yes - Enter the number of meals per week in the maximum meal plan available</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-l" colspan="2" nowrap="true"> <span class="sc-tbn" id="tb_f10870" name="tb_f10870" style="width:17px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;"> </span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="2">Yes - Number of meals per week can vary (e.g., students' charge meals against a meal card)</td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part D - Undergraduate Student Charges</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b><font style="color:#cc0000">Data changed on this page cannot be saved and therefore will not be changed in the Prior Year system.</font></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="11"><b>If the institution charges an <a href="javascript:openglossary(47)">application fee</a>, indicate the amount.<b></b></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="8"> </td><td class="sc-tb-c"><img id="screenTip_11" src="images/icon_tip.gif" style="border:none; vertical-align:top;"/> <b>Amount<b></b></b></td><td class="sc-tb-c"><b>Prior year<b></b></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="8"><a href="javascript:openglossary(47)" style="color:Black"><b>Undergraduate application fee</b></a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10854" name="tb_f10854" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">25</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 25</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="11"> </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="7">5. <b>Charges to <a href="javascript:openglossary(259)">full-time undergraduate students</a> for the full <a href="javascript:openglossary(19)">academic year</a> 2014-15<b></b></b></td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3"><i>Please be sure to report an average tuition that includes all students at all levels (freshman, sophomore, etc.).</i></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"><b>Amount<b></b></b></td><td class="sc-tb-l"><b>Prior year<b></b></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3">All full-time <a href="javascript:openglossary(677)">undergraduates</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Average <a href="javascript:openglossary(848)">tuition</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10871" name="tb_f10871" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">19,240</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 18,862</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(788)" style="color:Black">Required fees</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10874" name="tb_f10874" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,618</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 1,587</td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="7">6. <b>Per <a href="javascript:openglossary(155)">credit hour</a> charge for <a href="javascript:openglossary(469)">part-time undergraduate students</a><b></b></b></td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-tb-l" colspan="3"><i>Please be sure to report an average per credit tuition that includes all students at all levels (freshman, sophomore, etc.).</i></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"><b>Amount<b></b></b></td><td class="sc-tb-l"><b>Prior year<b></b></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(155)" style="color:Black">Per credit hour charge</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10883" name="tb_f10883" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">801</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 786</td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part D - Graduate Student Charges</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b><font style="color:#cc0000">Data changed on this page cannot be saved and therefore will not be changed in the Prior Year system.</font></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="3"><b>If the institution charges an <a href="javascript:openglossary(47)">application fee</a>, indicate the amount.<b></b></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">                     </td><td class="sc-tb-c"><b>Amount<b></b></b></td><td class="sc-tb-c"><b>Prior year<b></b></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(47)" style="color:Black"><b>Graduate application fee</b></a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10855" name="tb_f10855" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">50</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 50</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="3"> <br/><b><i><span style=" color : red ">Please do not include tuition for Doctor’s Degree – Professional Practice programs.<br/>Data for those programs are collected separately.</span></i></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3">7. <b>Charges to <a href="javascript:openglossary(259)">full-time graduate students</a> for the full <a href="javascript:openglossary(19)">academic year</a> 2014-15<b></b></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"><b>Amount<b></b></b></td><td class="sc-tb-l"><b>Prior year<b></b></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Average <a href="javascript:openglossary(848)">tuition</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10886" name="tb_f10886" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">19,251</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 18,874</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(788)" style="color:Black">Required fees</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10889" name="tb_f10889" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,618</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 1,587</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3">8. <b>Per <a href="javascript:openglossary(155)">credit hour</a> charge for <a href="javascript:openglossary(469)">part-time graduate students</a><b></b></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"><b>Amount<b></b></b></td><td class="sc-tb-l"><b>Prior year<b></b></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Per <a href="javascript:openglossary(155)">credit hour</a> charge</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10895" name="tb_f10895" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,070</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 1,049</td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part D - Student Charges - Room and Board </div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b><font style="color:#cc0000">Data changed on this page cannot be saved and therefore will not be changed in the Prior Year system.</font></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="3">10. <b>What are the typical <a href="javascript:openglossary(565)">room</a> and <a href="javascript:openglossary(87)">board charges</a> for a student for the full academic year 2014-15?<b></b></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3"><i>If your institution offers room or board at no charge to students, enter zero.</i></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3"><i>If you report room and board separately, leave the combined charge blank. If you report a combined charge, leave the room and board charges blank.</i></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(565)">Room</a> and <a href="javascript:openglossary(87)">board charges</a></td><td class="sc-tb-l"><b>Amount<b></b></b></td><td class="sc-tb-l"><b>Prior year<b></b></b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Room charge (Double occupancy)</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10945" name="tb_f10945" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5,752</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 5,641</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Board charge (Maximum plan)</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10946" name="tb_f10946" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4,408</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 4,209</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Combined room and board charge <br/>(Answer only if you CANNOT separate room and board charges.)<br/></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10947" name="tb_f10947" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;"> </span></td><td class="sc-dbcalc-f-py sc-tb-r">  </td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part D - Student Charges - Price of Attendance</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b><font style="color:#cc0000">Data changed on this page cannot be saved and therefore will not be changed in the Prior Year system.</font></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="9">11. Cost of attendance for full-time, first-time undergraduate students:</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="9"><i>Please enter the amounts requested below. These data will be made available to the public on College Navigator. If your institution participates in any Title IV programs (Pell, Stafford, etc.), you must complete all information. <font color="red">Estimates of expenses for books and supplies, room and board, and other expenses are those from the <b>Cost of Attendance report</b> used by the financial aid office in determining financial need. Please talk to your financial aid office to get these numbers, to ensure that you are reporting correctly.</font></i></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="9"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="9"><img id="screenTip_12" src="images/icon_tip.gif" style="border:none; vertical-align:top;"/> If the <b>2014-15 tuition and/or fees as reported on this page</b> for <i>full-time, first-time students</i> are covered by a <a href="javascript:openglossary(949)">tuition guarantee</a> program, check the applicable box(es) under 'Tuition Guarantee'. Additionally, please indicate the maximum % increase that is guaranteed. <i>These numbers are expected to be fairly small. Please contact the Help Desk if you are confused about these values and how to report them.</i></td>
+</tr>
+<tr class="sc-row" id="re_1">
+<td class="sc-tb-l" colspan="3"><b>Charges for full academic year<b></b></b></td><td class="sc-tb-c"><b>2011-12</b></td><td class="sc-tb-c"><b>2012-13</b></td><td class="sc-tb-c"><b>2013-14</b></td><td class="sc-tb-c"><b>2014-15</b></td><td class="sc-tb-l"> </td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row-alt" id="re_1">
+<td class="sc-tb-l" colspan="7"><b>Published <a href="javascript:openglossary(848)">tuition</a> and <a href="javascript:openglossary(788)">required fees</a>:</b></td><td class="sc-tb-l"><img id="screenTip_12" src="images/icon_tip.gif" style="border:none; vertical-align:top;"/> <a href="javascript:openglossary(949)">Tuition Guarantee</a><br/><i>(check only if applicable to <b>entering students in 2014-15</b>)</i></td><td class="sc-tb-l"><b>Guaranteed increase %</b></td>
+</tr>
+<tr class="sc-row" id="re_1">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2">Tuition                                        </td><td class="sc-dbcalc-f-py sc-tb-r"> 18,491</td><td class="sc-dbcalc-f-py sc-tb-r"> 18,491</td><td class="sc-dbcalc-f-py sc-tb-r"> 18,862</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100113" name="tb_f1100113" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">19,240</span></td><td class="sc-s sc-tb-c" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-s sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100029" name="tb_f1100029" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;"> </span></td>
+</tr>
+<tr class="sc-row-alt" id="re_1">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2">Required fees                                        </td><td class="sc-dbcalc-f-py sc-tb-r"> 1,510</td><td class="sc-dbcalc-f-py sc-tb-r"> 1,510</td><td class="sc-dbcalc-f-py sc-tb-r"> 1,587</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100033" name="tb_f1100033" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,618</span></td><td class="sc-s sc-tb-c" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-s sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100035" name="tb_f1100035" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;"> </span></td>
+</tr>
+<tr class="sc-row" id="re_1">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2">Tuition + fees total</td><td class="sc-dbcalc-f-py sc-tb-r"> 20,001</td><td class="sc-dbcalc-f-py sc-tb-r"> 20,001</td><td class="sc-dbcalc-f-py sc-tb-r"> 20,449</td><td class="sc-s sc-tb-r" nowrap="true"> 20,858</td><td class="sc-tb-l"> </td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row-alt" id="re_1">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-l"> </td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row" id="re_1">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(89)" style="color:Black">Books and supplies</a></td><td class="sc-dbcalc-f-py sc-tb-r"> 1,600</td><td class="sc-dbcalc-f-py sc-tb-r"> 1,600</td><td class="sc-dbcalc-f-py sc-tb-r"> 1,600</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10959" name="tb_f10959" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,600</span></td><td class="sc-tb-l"> </td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row-alt" id="re_1">
+<td class="sc-tb-l" colspan="9"><b>On-campus:</b></td>
+</tr>
+<tr class="sc-row" id="re_1">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(565)">Room</a> and <a href="javascript:openglossary(87)">board</a></td><td class="sc-dbcalc-f-py sc-tb-r"> 9,800</td><td class="sc-dbcalc-f-py sc-tb-r"> 9,800</td><td class="sc-dbcalc-f-py sc-tb-r"> 9,850</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10962" name="tb_f10962" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">10,160</span></td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row-alt" id="re_1">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(718)" style="color:Black">Other expenses</a></td><td class="sc-dbcalc-f-py sc-tb-r"> 5,348</td><td class="sc-dbcalc-f-py sc-tb-r"> 5,092</td><td class="sc-dbcalc-f-py sc-tb-r"> 5,000</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10965" name="tb_f10965" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4,000</span></td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row" id="re_1">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2">Room and board and other expenses</td><td class="sc-dbcalc-f-py sc-tb-r"> 15,148</td><td class="sc-dbcalc-f-py sc-tb-r"> 14,892</td><td class="sc-dbcalc-f-py sc-tb-r"> 14,850</td><td class="sc-s sc-tb-r" nowrap="true"> 14,160</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row-alt" id="re_1">
+<td class="sc-tb-l" colspan="9"><a href="javascript:openglossary(972)" style="color:Black"><b>Off-campus (not with family):</b></a></td>
+</tr>
+<tr class="sc-row" id="re_1">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(565)">Room</a> and <a href="javascript:openglossary(87)">board</a></td><td class="sc-dbcalc-f-py sc-tb-r"> 9,800</td><td class="sc-dbcalc-f-py sc-tb-r"> 9,800</td><td class="sc-dbcalc-f-py sc-tb-r"> 9,850</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10968" name="tb_f10968" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">10,000</span></td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row-alt" id="re_1">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(718)" style="color:Black">Other expenses</a></td><td class="sc-dbcalc-f-py sc-tb-r"> 5,348</td><td class="sc-dbcalc-f-py sc-tb-r"> 5,092</td><td class="sc-dbcalc-f-py sc-tb-r"> 5,000</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10971" name="tb_f10971" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4,000</span></td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row" id="re_1">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2">Room and board and other expenses</td><td class="sc-dbcalc-f-py sc-tb-r"> 15,148</td><td class="sc-dbcalc-f-py sc-tb-r"> 14,892</td><td class="sc-dbcalc-f-py sc-tb-r"> 14,850</td><td class="sc-s sc-tb-r" nowrap="true"> 14,000</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row-alt" id="re_1">
+<td class="sc-tb-l" colspan="9"><a href="javascript:openglossary(971)" style="color:Black"><b>Off-campus (with family):</b></a></td>
+</tr>
+<tr class="sc-row" id="re_1">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(718)" style="color:Black">Other expenses</a></td><td class="sc-dbcalc-f-py sc-tb-r"> 9,800</td><td class="sc-dbcalc-f-py sc-tb-r"> 9,800</td><td class="sc-dbcalc-f-py sc-tb-r"> 9,850</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10974" name="tb_f10974" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4,000</span></td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="9"><img alt="These context notes will be posted on the College Navigator." src="images/icon_navigator.gif" style="border:none"/> You may use the space below to <b>provide context</b> for the data you've reported above.  These context notes will be posted on the College Navigator website, and should be written to be understood by students and parents.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="9" nowrap="true"> <textarea cols="54" id="cvt_f10975" name="cvt_f10975" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: inovas1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Part E - Athletic Association</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b><font style="color:#cc0000">Data changed on this page cannot be saved and therefore will not be changed in the Prior Year system.</font></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="6">1. <b>Is this institution a member of a national athletic association?<b></b></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="5">No</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="5">Yes - Check all that apply</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="4">National Collegiate Athletic Association (NCAA)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="4">National Association of Intercollegiate Athletics (NAIA)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="4">National Junior College Athletic Association (NJCAA)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="4">United States Collegiate Athletic Association (USCAA)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="4">National Christian College Athletic Association (NCCAA)                              </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/check_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l" colspan="4">Other</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="6">2. <b>If this institution is a member of the NCAA or NAIA, specify the conference FOR EACH SPORT using the pull down menu.</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="6"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b>Sport</b></td><td class="sc-tb-c" colspan="4"><b>NCAA or NAIA member</b></td><td class="sc-tb-c"><b>Conference</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Football</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">No</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Yes-Specify</td><td class="sc-tb-l" nowrap="true"> Select One</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Basketball</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">No</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Yes-Specify</td><td class="sc-tb-l" nowrap="true"> Gulf Coast Athletic Conference</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Baseball</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">No</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Yes-Specify</td><td class="sc-tb-l" nowrap="true"> Select One</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Cross country and/or track</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">No</td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Yes-Specify</td><td class="sc-tb-l" nowrap="true"> Gulf Coast Athletic Conference</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="6"> </td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div>
+<table border="0" cellpadding="4px" cellspacing="0" class="shade" width="650"><tbody><tr><td align="left" width="500">Institution: Fisk University (220181) </td><td align="right">User ID: inovas1</td></tr></tbody></table>
+</div><div style="padding:4px;width:650px;border:none;font-weight:bold;">Summary</div>
+<div>
+<style type="text/css">
+    table.grid
+    {
+        border-collapse: collapse;
+        font-size: 9px;
+    }
+    table.grid td
+    {
+        border: 1px solid #c7ddea;
+        font-size: 10px;
+        padding: 4px;
+        vertical-align: top;
+    }
+    table.grid tr.alt td
+    {
+        background-color: #F3F5F7;
+    }
+    table.grid th
+    {
+        background-color: #D2DFE5;
+        border: 1px solid #c7ddea;
+        padding: 4px;
+        text-align:center;
+    }
+    td.number
+    {
+        text-align: right;
+    }
+    td.number span
+    {
+        margin-right: 10px;
+    }
+    td.numberWide
+    {
+        text-align: right;
+    }
+    td.numberWide span
+    {
+        margin-right: 320px;
+    }
+</style>
+<div style="width:650px">
+<div style="padding-top:20px; text-align:center; font-family:Verdana; font-size:14px; font-weight:bold; color:#336699;">
+        Institutional Characteristics Component Summary<br/>
+        Academic Year Reporters
+    </div>
+<p id="header1">
+        IPEDS collects important information regarding your institution.  All data reported in IPEDS survey
+        components become available in the IPEDS Data Center and appear as aggregated data in various Department
+        of Education reports. Additionally, some of the reported data appears specifically for your institution
+        through the College Navigator website and is included in your institution’s Data Feedback Report (DFR).
+        The purpose of this summary is to provide you an opportunity to view some of the data that, when accepted
+        through the IPEDS quality control process, will appear on the College Navigator website and/or your DFR.
+        College Navigator is updated approximately three months after the data collection period closes and Data
+        Feedback Reports will be available through the <a href="http://nces.ed.gov/ipeds/datacenter/" target="_blank">Data Center</a> and sent to your institution’s CEO in November 2015. 
+    </p>
+<p id="header2">
+        Please review your data for accuracy.  If you have questions about the data displayed below after reviewing
+        the data reported on the survey screens, please contact the IPEDS Help Desk at: 1-877-225-2568 or
+        <a href="mailto:ipedshelp@rti.org">ipedshelp@rti.org</a>.
+    </p>
+<table class="grid" style="width:100%;">
+<tbody><tr>
+<th class="" colspan="2" style="font-family:Verdana; font-size:12px; font-weight:bold; color:#336699;">GENERAL INFORMATION</th>
+</tr>
+<tr class="">
+<td class="" style="width: 200px;">Mission Statement</td>
+<td class="">
+<span id="missionLabel">Fisk University produces graduates from diverse backgrounds with the integrity and intellect required for substantive contributions to society.  Our curriculum is grounded in the liberal arts, and our faculty and administrators emphasize the discovery and advancement of knowledge through research in the natural and social sciences, business and the humanities.  We are committed to the success of scholars and leaders with global perspective.</span>
+<span id="missionLink"></span>
+</td>
+</tr>
+<tr class="alt">
+<td class="">Are all the programs at your institution offered completely via distance education?</td>
+<td class="">
+<span id="distanceEducation">No</span>
+</td>
+</tr>
+<tr class="alt">
+<td class="">Special Learning Opportunities</td>
+<td class="">
+<span id="specialLearningLabel">ROTC (Army<br/> Navy<br/> Air Force)<br/> Study abroad<br/> Teacher certification (below the postsecondary level)</span>
+</td>
+</tr>
+<tr class="">
+<td class="">Student Services</td>
+<td class="">
+<span id="studentServicesLabel">Remedial services<br/> Academic/career counseling services<br/> Employment services for current students<br/> Placement services for program completers</span>
+</td>
+</tr>
+<tr class="alt">
+<td class="">Credit Accepted</td>
+<td class="">
+<span id="creditAcceptedLabel">Dual credit (college credit earned while in high school)<br/> Advanced placement (AP) credits</span>
+</td>
+</tr>
+<tr class="" id="trDisability">
+<td class="">Undergraduate students enrolled who are formally registered with office of disability services</td>
+<td class="">
+<span id="studentDisabilityLabel">3 percent or less</span>
+</td>
+</tr>
+</tbody></table>
+<table calss="grid" style="width:100%">
+<tbody><tr class="">
+<td> </td>
+</tr>
+</tbody></table>
+<table class="grid" id="pricingTableAcademic" style="width:100%">
+<tbody><tr class="alt" id="Tr1">
+<th class="" colspan="6" id="pricingTableAcademicHeader" style="border-top:none; font-family:Verdana; font-size:12px; font-weight:bold; color:#336699;">PRICING INFORMATION</th>
+</tr>
+<tr class="" id="Tr6">
+<td class="" colspan="2" style="width: 200px;">Estimated expenses for academic year for full-time, first-time students</td>
+<td class="">2011-12</td>
+<td class="">2012-13</td>
+<td class="">2013-14</td>
+<td class="">2014-15</td>
+</tr>
+<tr class="alt" id="Tr7">
+<td class="" style="width:50px"></td>
+<td class=""><label id="tuitionAndFeesInDistrictLabelAcademic">Tuition and fees</label></td>
+<td class="number"><span id="districtTuitionAndFeesThreeYearsAgoLabelAcademic">$20,001</span></td>
+<td class="number"><span id="districtTuitionAndFeesTwoYearsAgoLabelAcademic">$20,001</span></td>
+<td class="number"><span id="districtTuitionAndFeesLastYearLabelAcademic">$20,449</span></td>
+<td class="number"><span id="districtTuitionAndFeesCurrentYearLabelAcademic">$20,858</span></td>
+</tr>
+<tr class="" id="Tr10">
+<td class=""></td>
+<td class="">Books and supplies</td>
+<td class="number"><span id="booksThreeYearsAgoLabelAcademic">$1,600</span></td>
+<td class="number"><span id="booksTwoYearsAgoLabelAcademic">$1,600</span></td>
+<td class="number"><span id="booksLastYearLabelAcademic">$1,600</span></td>
+<td class="number"><span id="booksCurrentYearLabelAcademic">$1,600</span></td>
+</tr>
+<tr class="alt" id="Tr11">
+<td class=""></td>
+<td class="">On-campus room and board</td>
+<td class="number"><span id="onCampusRoomAndBoardThreeYearsAgoLabelAcademic">$9,800</span></td>
+<td class="number"><span id="onCampusRoomAndBoardTwoYearsAgoLabelAcademic">$9,800</span></td>
+<td class="number"><span id="onCampusRoomAndBoardLastYearLabelAcademic">$9,850</span></td>
+<td class="number"><span id="onCampusRoomAndBoardCurrentYearLabelAcademic">$10,160</span></td>
+</tr>
+<tr class="" id="Tr12">
+<td class=""></td>
+<td class="">On-campus other expenses</td>
+<td class="number"><span id="onCampusOtherThreeYearsAgoLabelAcademic">$5,348</span></td>
+<td class="number"><span id="onCampusOtherTwoYearsAgoLabelAcademic">$5,092</span></td>
+<td class="number"><span id="onCampusOtherLastYearLabelAcademic">$5,000</span></td>
+<td class="number"><span id="onCampusOtherCurrentYearLabelAcademic">$4,000</span></td>
+</tr>
+<tr class="alt">
+<td class=""></td>
+<td class="">Off-campus room and board</td>
+<td class="number"><span id="offCampusRoomAndBoardThreeYearsAgoLabelAcademic">$9,800</span></td>
+<td class="number"><span id="offCampusRoomAndBoardTwoYearsAgoLabelAcademic">$9,800</span></td>
+<td class="number"><span id="offCampusRoomAndBoardLastYearLabelAcademic">$9,850</span></td>
+<td class="number"><span id="offCampusRoomAndBoardCurrentYearLabelAcademic">$10,000</span></td>
+</tr>
+<tr class="">
+<td class=""></td>
+<td class="">Off-campus other expenses</td>
+<td class="number"><span id="offCampusOtherThreeYearsAgoLabelAcademic">$5,348</span></td>
+<td class="number"><span id="offCampusOtherTwoYearsAgoLabelAcademic">$5,092</span></td>
+<td class="number"><span id="offCampusOtherLastYearLabelAcademic">$5,000</span></td>
+<td class="number"><span id="offCampusOtherCurrentYearLabelAcademic">$4,000</span></td>
+</tr>
+<tr class="alt">
+<td class=""></td>
+<td class="">Off-campus with family other expenses</td>
+<td class="number"><span id="offCampusFamilyOtherThreeYearsAgoLabelAcademic">$9,800</span></td>
+<td class="number"><span id="offCampusFamilyOtherTwoYearsAgoLabelAcademic">$9,800</span></td>
+<td class="number"><span id="offCampusFamilyOtherLastYearLabelAcademic">$9,850</span></td>
+<td class="number"><span id="offCampusFamilyOtherCurrentYearLabelAcademic">$4,000</span></td>
+</tr>
+<tr class="">
+<td class="" colspan="2"><span id="underAcademicCaption1">Average undergraduate student tuition and fees for academic year 2014-15</span> </td>
+<td class="" colspan="2"><span id="underAcademicCaption2">Tuition</span></td>
+<td class="" colspan="2"><span id="underAcademicCaption3">Fees</span></td>
+</tr>
+<tr class="alt">
+<td class=""></td>
+<td class=""></td>
+<td class="number" colspan="2"><span id="districtUndergradTuitionLabelAcademic">$19,240</span></td>
+<td class="number" colspan="2"><span id="districtUndergradFeesLabelAcademic">$1,618</span></td>
+</tr>
+<tr class="">
+<td class="" colspan="2">Average graduate student tuition and fees for academic year 2014-15</td>
+<td class="" colspan="2">Tuition</td>
+<td class="" colspan="2">Fees</td>
+</tr>
+<tr class="alt">
+<td class=""></td>
+<td class=""></td>
+<td class="number" colspan="2"><span id="districtGradTuitionLabelAcademic">$19,251</span></td>
+<td class="number" colspan="2"><span id="districtGradFeesLabelAcademic">$1,618</span></td>
+</tr>
+<tr class="">
+<td class="" colspan="2">Alternative tuition plans</td>
+<td class="" colspan="4"><span id="alternativeTuitionPlanLabelAcademic">Tuition payment plan</span></td>
+</tr>
+</tbody></table>
+<table calss="grid" style="width:100%">
+<tbody><tr class="">
+<td> </td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+</tbody></table>
+<div style="text-align:left">
+                    
+        		                  
+                    
+        </div></div>
+</div>
+</form>
+<div class="top"><a href="#top">Back to top</a></div>
+</body></html>

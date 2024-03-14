@@ -1,0 +1,988 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>
+	Reported Data
+</title>
+<style>
+        .page-header {
+            font-size: 16px;
+        }
+
+        @media print
+        {    
+            .page-header {
+                display: none;
+            }
+
+            .page-header-wrapper {
+                display: none;
+            }
+        }
+
+        select {
+            padding: 4px 4px;
+            font-size: 15px;
+            border-radius: 6px;
+        }
+
+        .mr-2 {
+            margin-right: 0.5em;
+        }
+
+        .mr-4 {
+            margin-right: 1em;
+        }
+
+        .mr-8 {
+            margin-right: 2em;
+        }
+
+        .btn {
+            border: 1px solid #999;
+            padding: 1px 10px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .loading-data {
+            margin: 20px auto 0 auto;
+            width: 150px;
+            text-align: center;
+        }
+
+        #top {
+            position: relative;
+            top: -100px;
+        }
+
+        .top {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            padding: 5px 5px;
+            background-color: #eee;
+            text-align: center;
+        }
+
+        .top a:link,
+        .top a:visited,
+        .top a:hover {
+            text-decoration: none;
+            color: #333;
+        }
+
+        .no-survey-found {
+            background-color: #f7f7f7;
+            padding: 20px 20px;
+            font-size: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .no-survey-found.show {
+            display: block;
+        }
+
+        #survey_content {
+            border:0px solid red;
+            margin-top: 20px;
+            padding-top: 10px;
+        }
+        .note-message {
+            padding: 8px 12px;
+            background-color: #fcfbec;
+            border:1px solid #c6c4a5;
+            border-radius:4px;
+            display:none;
+            font-size:13px;
+        }
+        .note-message.show {
+            display: block;
+        }
+    </style>
+<script src="scripts/jquery-3.6.0.js" type="text/javascript"></script>
+<script>
+        let year = 2019;
+        let prevYear = 2019;
+        let unitId = 220181;
+        let surveyNumber = 18;
+
+        function removeFacsimileStyleFiles() {
+            $('[data-year="2020"]').remove();
+            $('[data-year="2006"]').remove();
+            $('[data-year="2005"]').remove();
+            $('[data-year="20002004"]').remove();
+        }
+
+        function addFacsimileStyleFile() {
+            // update year
+            if (year >= 2020) {
+                addCssFile('facsimile/assets/css/styles.css', '2020');
+            } else if (year >= 2000 && year <= 2004) {
+                addCssFile('styles/fm_style00_04.css', '20002004');
+                addCssFile('styles/fm_style00_04_fixes.css', '20002004');
+            } else if (year === 2005) {
+                addCssFile('styles/fm_style05.css', '2005');
+            }
+            else if (year > 2005) {
+                addCssFile('styles/facsimile.css', '2006');
+            }
+        }
+
+        function addCssFile(fileName, dataYearAttr) {
+            var cssRef = document.createElement("link");
+            cssRef.setAttribute("rel", "stylesheet");
+            cssRef.setAttribute("type", "text/css");
+            cssRef.setAttribute("href", fileName);
+            cssRef.setAttribute('data-year', dataYearAttr);
+            document.getElementsByTagName("head")[0].appendChild(cssRef)
+        }
+
+        function loadContent() {
+            $('#survey_content').html('<div class="loading-data"><h2>Loading data...</h2></div>');
+            $('.no-survey-found').removeClass('show');
+            $('#data-revised-note').removeClass('show');
+            $('#data-not-revised-note').removeClass('show');
+           
+            $.ajax({
+                url: 'FacsimileView.aspx?action=data&year=' + year + '&prevYear=' + prevYear + '&unitId=' + unitId + '&surveyNumber=' + surveyNumber,
+                type: "GET",
+                cache: false,
+                success: function (data) {
+                    prevYear = year;
+                    var json = JSON.parse(data);
+                    $('#survey_content').html(json.SurveyHtml);
+
+                    //***************
+                    $('#data-not-revised-note').removeClass('show');
+                    $('#latest-year-data-not-revised-note').removeClass('show');
+                    $('#pre-2014-data-not-revised-note').removeClass('show');
+                    $('#data-revised-note').removeClass('show');
+
+                    // Message about revised data:
+                    if (year >= 2022 ) {
+                        $('#latest-year-data-not-revised-note').addClass('show');
+                    }
+                    else if (year >= 2014 && year<=2021) {
+
+                        if (json.DataRevised === true)
+                            $('#data-revised-note').addClass('show');
+                        else //if (json.DataRevised === false)
+                            $('#data-not-revised-note').addClass('show');
+                    }
+                    else
+                        $('#pre-2014-data-not-revised-note').addClass('show');
+
+
+                    const container = document.getElementById('survey_content');
+
+                    // Get all buttons within the container
+                    const buttons = container.querySelectorAll('button');
+
+                    // Loop through each button and disable it
+                    buttons.forEach(button => {
+                        button.disabled = true;
+                    });
+
+
+                    if (json.Surveys) {
+                        // we need to create new values in Survey dropdown
+                        let dropdown = $('#select-surveys')[0];
+                        // first remove all elements
+                        while (dropdown.options.length > 0)
+                            dropdown.remove(0);
+
+                        let surveyNumbers = Object.keys(json.Surveys);
+                        let surveyNumberExistsInDifferentYear = false;
+                        for (let i = 0; i < surveyNumbers.length; i++) {
+                            let opt = document.createElement('option');
+                            opt.value = surveyNumbers[i];
+                            if (surveyNumbers[i] == surveyNumber) {
+                                surveyNumberExistsInDifferentYear = true;
+                                opt.selected = true;
+                            }
+                            opt.innerHTML = json.Surveys[surveyNumbers[i]];
+                            dropdown.appendChild(opt);
+                        }
+                        // if survey does not exists, add empty <option>
+                        if (surveyNumberExistsInDifferentYear == false) {
+                            let opt = document.createElement('option');
+                            opt.value = '';
+                            opt.innerHTML = 'Select a survey';
+                            opt.selected = true;
+                            dropdown.add(opt, dropdown.options[0]);
+                            $('.no-survey-found').addClass('show');
+                            $('#data-not-revised-note').removeClass('show');
+                        }                       
+                            
+                    }
+
+                    // Update url to reflect selected year/survey
+                    //let newUrl = new URL(window.location.href);
+                    //let params = new URLSearchParams(newUrl.search);
+                    
+                   
+                    //params.set('year', year);
+                    //params.set('surveyNumber', surveyNumber)
+
+
+                    let searchParams = new URLSearchParams(window.location.search);
+
+                    searchParams.delete("surveynumber");
+                    searchParams.delete("year");
+                    searchParams.set('year', year);
+                    searchParams.set('surveyNumber', surveyNumber)
+
+                    if (window.history.replaceState) {
+                        const url = window.location.protocol
+                            + "//" + window.location.host
+                            + window.location.pathname
+                            + "?"
+                            + searchParams.toString();
+
+                        window.history.replaceState({
+                            path: url
+                        }, "", url)
+                    }
+
+
+                },
+                error: function (xhr, err) {
+                    console.log("Status: " + xhr.status + "\nResponse Text:" + xhr.responseText);
+                }
+            });
+        }
+
+        function selectSurvey(ev) {
+            surveyNumber = ev.target.value;
+            loadContent();
+        }
+
+        function selectYear(ev) {
+            year = +ev.target.value;
+            loadContent();
+
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+        }
+
+        function updateURLParameter(url, param, paramVal) {
+            let TheAnchor = null;
+            let newAdditionalURL = "";
+            let tempArray = url.split("?");
+            let baseURL = tempArray[0];
+            let additionalURL = tempArray[1];
+            let temp = "";
+
+            if (additionalURL) {
+                var tmpAnchor = additionalURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+                if (TheAnchor)
+                    additionalURL = TheParams;
+
+                tempArray = additionalURL.split("&");
+
+                for (var i = 0; i < tempArray.length; i++) {
+                    if (tempArray[i].split('=')[0] != param) {
+                        newAdditionalURL += temp + tempArray[i];
+                        temp = "&";
+                    }
+                }
+            }
+            else {
+                var tmpAnchor = baseURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+
+                if (TheParams)
+                    baseURL = TheParams;
+            }
+
+            if (TheAnchor)
+                paramVal += "#" + TheAnchor;
+
+            var rows_txt = temp + "" + param + "=" + paramVal;
+            return baseURL + "?" + newAdditionalURL + rows_txt;
+        }
+
+        
+
+        $(document).ready(function () {
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+            loadContent();
+        });
+
+        function printPage() {
+            window.print();
+        }
+    </script>
+<link data-year="2006" href="styles/facsimile.css" rel="stylesheet" type="text/css"/></head>
+<body>
+<div class="page-header-wrapper" style="background-color: #eee; padding: 18px 6px;">
+<div class="page-header" style="width: 90%; margin: 0 auto;">
+<div style="display: flex; align-items: center!important;">
+<div class="mr-4">Reported Data: Fisk University </div>
+<div class="mr-4">|</div>
+<div class="mr-2">Select year:</div>
+<div class="mr-4">
+<select onchange="selectYear(event)">
+<option value="2022">2022</option>
+<option value="2021">2021</option>
+<option value="2020">2020</option>
+<option selected="" value="2019">2019</option>
+<option value="2018">2018</option>
+<option value="2017">2017</option>
+<option value="2016">2016</option>
+<option value="2015">2015</option>
+<option value="2014">2014</option>
+<option value="2013">2013</option>
+<option value="2012">2012</option>
+<option value="2011">2011</option>
+<option value="2010">2010</option>
+<option value="2009">2009</option>
+<option value="2008">2008</option>
+<option value="2007">2007</option>
+<option value="2006">2006</option>
+<option value="2005">2005</option>
+<option value="2004">2004</option>
+<option value="2003">2003</option>
+<option value="2002">2002</option>
+<option value="2001">2001</option>
+</select>
+</div>
+<div class="mr-2">Select survey:</div>
+<div class="mr-2">
+<select id="select-surveys" onchange="selectSurvey(event)">
+<option value="1">Institutional Characteristics</option>
+<option value="12">Admissions and Test Scores</option>
+<option value="15">Fall Enrollment</option>
+<option value="14">12-Month Enrollment</option>
+<option value="3">Completions</option>
+<option value="8">Graduation Rates</option>
+<option value="22">GR200</option>
+<option selected="" value="18">Outcome Measures</option>
+<option value="7">Student Financial Aid and Net Price</option>
+<option value="6">Finance</option>
+<option value="9">Human Resources</option>
+<option value="16">Academic Libraries</option>
+</select>
+</div>
+<div style="flex: 1 1 auto!important;"> </div>
+<div>
+<button class="mr-4 btn">
+<img onclick="printPage()" src="images/printer-svgrepo-com.svg" style="width: 15px"/>
+</button>
+<a href="Facsimile.aspx?unitId=220181">
+<img src="images/icon_close.svg" style="width: 25px"/>
+</a>
+</div>
+</div>
+</div>
+</div>
+<a id="top"></a>
+<form action="./facsimileView.aspx?unitid=220181&amp;surveynumber=18&amp;year=2019&amp;goToReportId=6" id="form1" method="post" name="form1">
+<div>
+<input id="__VIEWSTATE" name="__VIEWSTATE" type="hidden" value="/wEPDwUJNDk4MDAyNjQ0ZGQ1Rt5I0VdqjyBZxpj37FRHeGkbkoRpCmohM64NK8Nn3w=="/>
+</div>
+<div>
+<input id="__VIEWSTATEGENERATOR" name="__VIEWSTATEGENERATOR" type="hidden" value="3C3AC055"/>
+</div>
+<div style="width: 1000px; margin: 0 auto;">
+<div class="note-message show" id="data-not-revised-note">Note: Institution did NOT submit revisions through the Prior Year Data Revision System for selected collection year and survey.</div>
+<div class="note-message" id="data-revised-note">Note: Reported data includes revisions made through the Prior Year Data Revision System for  selected collection year and survey.</div>
+<div class="note-message" id="pre-2014-data-not-revised-note">Note: Reported data do not include revisions made through the Prior Year Data Revision System for any institution prior to collection year 2014.</div>
+<div class="note-message" id="latest-year-data-not-revised-note">Note: Revisions made through the Prior Year Data Revision System are not available for the selected collection year.</div>
+<div class="no-survey-found">
+                Please select survey from dropdown above
+            </div>
+<div id="survey_content"><div class="facsimile_assets"><table border="0" cellpadding="0" cellspacing="0" id="Table3" width="650">
+<tbody><tr>
+<td align="left">
+<table border="0" cellpadding="0" cellspacing="0" id="tblHeader" width="650">
+<tbody><tr>
+<td colspan="2" style="line-height:20px; height:20px; vertical-align:middle;">
+<div align="center" class="pagetitle" style="height:100%; padding-top:10px;">
+<span id="lblSurveyName">Outcome Measures 2019-20</span>
+</div>
+<br/>
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Establishing Cohorts</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="6"><b>Establishing Cohorts</b>
+<br/><b>2011-12 Entering Undergraduate Cohort</b><br/>(July 1, 2011-June 30, 2012: Full Year)<br/><br/> <b>Directions:</b> Begin by identifying your entering degree/certificate-seeking undergraduates for the full year of July 1, 2011 - June 30, 2012. Then report each student under one of the eight subcohorts (Pell or Non-Pell Grant recipients FTFT, FTPT, NFTFT, NFTPT). Each entering student should be reported only once. The four cohorts and total entering students will be calculated based on your subcohort reporting.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6"> <b> NOTE:</b> Once a student is in the cohort, the student remains in the cohort, even if the student's attendance status changes (i.e., full-time to part-time, or vice versa) or if the student drops out, transfers out, or transfers back into the institution during the eight-year period. However, institutions can make adjustments to the cohort for allowable exclusions, which include the death of a student, permanent disability, military deployment, or service on an official church mission or with a foreign aid service of the Federal government.
+Exclusions are for the <b>ENTIRE</b> eight years for the entering 2011-12 cohort.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(171)" style="color:Black"><b>Degree/Certificate-Seeking Undergraduate Students</b></a></td><td class="sc-tb-c"><a href="javascript:openglossary(119)" style="color:Black"><b>2011-12 cohort</b></a></td><td class="sc-tb-c"><a href="javascript:openglossary(207)" style="color:Black"><b>Exclusions <br/> to 2011-12 cohort </b></a></td><td class="sc-tb-c"><a href="javascript:openglossary(29)" style="color:Black"><b>Adjusted<br/> 2011-12 cohort</b></a></td><td class="sc-tb-c"><b><font color="red">Prior year</font><br/>Adjusted cohort</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6"><a href="javascript:openglossary(241)" style="color:Black">First-time entering</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l"><a href="javascript:openglossary(259)" style="color:Black">Full-time</a></td><td class="sc-s sc-tb-r" nowrap="true"> 138</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 138</td><td class="sc-dbcalc-f-py sc-tb-r"> 164</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300201" name="tb_f1300201" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">83</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300202" name="tb_f1300202" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 83</td><td class="sc-dbcalc-f-py sc-tb-r"> 89</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300204" name="tb_f1300204" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">55</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300205" name="tb_f1300205" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 55</td><td class="sc-dbcalc-f-py sc-tb-r"> 75</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l"><a href="javascript:openglossary(469)" style="color:Black">Part-time</a></td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-dbcalc-f-py sc-tb-r"> 18</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300210" name="tb_f1300210" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300211" name="tb_f1300211" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-dbcalc-f-py sc-tb-r"> 11</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300213" name="tb_f1300213" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300214" name="tb_f1300214" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-dbcalc-f-py sc-tb-r"> 7</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="6"><a href="javascript:openglossary(1060)" style="color:Black">Non-First-time entering</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Full-time</td><td class="sc-s sc-tb-r" nowrap="true"> 18</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 18</td><td class="sc-dbcalc-f-py sc-tb-r"> 13</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300219" name="tb_f1300219" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">11</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300220" name="tb_f1300220" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 11</td><td class="sc-dbcalc-f-py sc-tb-r"> 4</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300222" name="tb_f1300222" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">7</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300223" name="tb_f1300223" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 7</td><td class="sc-dbcalc-f-py sc-tb-r"> 9</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Part-time</td><td class="sc-s sc-tb-r" nowrap="true"> 6</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 6</td><td class="sc-dbcalc-f-py sc-tb-r"> 1</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300228" name="tb_f1300228" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300229" name="tb_f1300229" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-dbcalc-f-py sc-tb-r">  </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300231" name="tb_f1300231" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300232" name="tb_f1300232" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-dbcalc-f-py sc-tb-r"> 1</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(700)" style="color:Black">Total Entering</a></td><td class="sc-s sc-tb-r" nowrap="true"> 166</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 166</td><td class="sc-dbcalc-f-py sc-tb-r"> 196</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-s sc-tb-r" nowrap="true"> 102</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 102</td><td class="sc-dbcalc-f-py sc-tb-r"> 104</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-s sc-tb-r" nowrap="true"> 64</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 64</td><td class="sc-dbcalc-f-py sc-tb-r"> 92</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="6"> The following reference table is based on institutional data reported in the specified data collections. Data reported on this screen (Establishing Cohorts for OM) have been compared with the data below. To review your prior reported data, go to the Tools menu in the IPEDS Data Collection System --&gt; Go to Collection Level Data Center --&gt; Look up an Institution --&gt; Select your institution --&gt; Select "Reported Data"</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-c"> 2011 Fall Enrollment,<br/>2011-12 Spring Collection</td><td class="sc-tb-c"> 2011 Pell Grant data<br/>from Student Financial Aid,<br/>2012-13 Winter Collection</td><td class="sc-tb-r" colspan="2"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"> First-time, Full-time</td><td class="sc-tb-r"> 122</td><td class="sc-tb-r"> 67</td><td class="sc-tb-r" colspan="2"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> First-time, Part-time</td><td class="sc-tb-r"> 3</td><td class="sc-tb-r"> N/A</td><td class="sc-tb-r" colspan="2"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"> Non-First-time, Full-time</td><td class="sc-tb-r"> 17</td><td class="sc-tb-r"> N/A</td><td class="sc-tb-r" colspan="2"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> Non-First-time, Part-time</td><td class="sc-tb-r">  </td><td class="sc-tb-r"> N/A</td><td class="sc-tb-r" colspan="2"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"> Total Undergraduates</td><td class="sc-tb-r"> N/A</td><td class="sc-tb-r"> 287</td><td class="sc-tb-r" colspan="2"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6"> </td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Award Status at Four Years</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="8"><b>Award Status at Four Years After Entry</b><br/><b>2011-12 Entering Undergraduate Cohort</b><br/>(July 1, 2011-June 30, 2012: Full Year)<br/><br/>
+<b> Directions:</b> From the adjusted 2011-12 cohort, report the number of students who earned an award at four years after entry for each subcohort. Report the highest award earned for each degree/certificate-seeking student for the four-year status point (August 31, 2015) even if a student earns multiple awards.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="2" rowspan="2"><a href="javascript:openglossary(171)" style="color:Black"><b>Undergraduate Students</b></a></td><td class="sc-tb-c" rowspan="2"><b>Adjusted <br/>2011-12 cohort</b></td><td class="sc-tb-c" colspan="3"><b>Number of students conferred an award<br/>by your institution
+<br/>(Highest Award by August 31, 2015)<br/></b></td><td class="sc-tb-c" rowspan="2"><b>Total number of<br/>adjusted cohort<br/>that received an award<br/>from your institution</b></td><td class="sc-tb-c" rowspan="2"><b>Percent of adjusted<br/>cohort that received<br/> an award from your<br/> institution</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"><a href="javascript:openglossary(105)" style="color:Black">   <b>Certificates</b>  </a></td><td class="sc-tb-c"><a href="javascript:openglossary(55)" style="color:Black">   <b>Associate's</b>  </a></td><td class="sc-tb-c"><a href="javascript:openglossary(77)" style="color:Black">   <b>Bachelor's</b>  </a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(241)" style="color:Black"><u>First-time entering</u></a></td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="5"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Full-time</td><td class="sc-tb-r"> 138</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 50</td><td class="sc-s sc-tb-r" nowrap="true"> 50</td><td class="sc-s sc-tb-r" nowrap="true"> 36</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 83</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300701" name="tb_f1300701" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300702" name="tb_f1300702" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300703" name="tb_f1300703" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">33</span></td><td class="sc-s sc-tb-r" nowrap="true"> 33</td><td class="sc-s sc-tb-r" nowrap="true"> 40</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 55</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300711" name="tb_f1300711" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300712" name="tb_f1300712" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300713" name="tb_f1300713" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">17</span></td><td class="sc-s sc-tb-r" nowrap="true"> 17</td><td class="sc-s sc-tb-r" nowrap="true"> 31</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Part-time</td><td class="sc-tb-r"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 4</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300731" name="tb_f1300731" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300732" name="tb_f1300732" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300733" name="tb_f1300733" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300741" name="tb_f1300741" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300742" name="tb_f1300742" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300743" name="tb_f1300743" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true">  </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(1060)" style="color:Black"><u>Non-First-time entering</u></a></td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="5"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Full-time</td><td class="sc-tb-r"> 18</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 7</td><td class="sc-s sc-tb-r" nowrap="true"> 7</td><td class="sc-s sc-tb-r" nowrap="true"> 39</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 11</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300761" name="tb_f1300761" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300762" name="tb_f1300762" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300763" name="tb_f1300763" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4</span></td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 36</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 7</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300771" name="tb_f1300771" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300772" name="tb_f1300772" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300773" name="tb_f1300773" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3</span></td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 43</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Part-time</td><td class="sc-tb-r"> 6</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 33</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 4</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300791" name="tb_f1300791" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300792" name="tb_f1300792" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300793" name="tb_f1300793" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 50</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 2</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300801" name="tb_f1300801" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300802" name="tb_f1300802" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300803" name="tb_f1300803" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="5"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(700)" style="color:Black">Total Entering</a></td><td class="sc-tb-r"> 166</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 59</td><td class="sc-s sc-tb-r" nowrap="true"> 59</td><td class="sc-s sc-tb-r" nowrap="true"> 36</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 102</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 39</td><td class="sc-s sc-tb-r" nowrap="true"> 39</td><td class="sc-s sc-tb-r" nowrap="true"> 38</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 64</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 20</td><td class="sc-s sc-tb-r" nowrap="true"> 20</td><td class="sc-s sc-tb-r" nowrap="true"> 31</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="5"> </td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Award Status at Six Years</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="8"><b>Award Status at Six Years After Entry</b><br/><b>2011-12 Entering Undergraduate Cohort</b><br/>(July 1, 2011-June 30, 2012: Full Year)<br/><br/>
+<b> Directions:</b> From the adjusted 2011-12 cohort, report the number of students who earned an award at six years after entry for each subcohort. Report the highest award earned for each degree/certificate-seeking student for the six-year status point (August 31, 2017) even if a student earns multiple awards.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="2" rowspan="2"><a href="javascript:openglossary(171)" style="color:Black"><b>Undergraduate Students</b></a></td><td class="sc-tb-c" rowspan="2"><b>Adjusted <br/>2011-12 cohort</b></td><td class="sc-tb-c" colspan="3"><b>Number of students conferred an award<br/>by your institution
+<br/>(Highest Award through August 31, 2017)<br/>
+</b></td><td class="sc-tb-c" rowspan="2"><b>Total number of<br/>adjusted cohort<br/>that received an award<br/>from your institution</b></td><td class="sc-tb-c" rowspan="2"><b>Percent of adjusted<br/>cohort that received<br/> an award from your<br/> institution</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"><a href="javascript:openglossary(105)" style="color:Black">   <b>Certificates</b>  </a></td><td class="sc-tb-c"><a href="javascript:openglossary(55)" style="color:Black">   <b>Associate's</b>  </a></td><td class="sc-tb-c"><a href="javascript:openglossary(77)" style="color:Black">   <b>Bachelor's</b>  </a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(241)" style="color:Black"><u>First-time entering</u></a></td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="5"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Full-time</td><td class="sc-tb-r"> 138</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 60</td><td class="sc-s sc-tb-r" nowrap="true"> 63</td><td class="sc-s sc-tb-r" nowrap="true"> 46</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 83</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300501" name="tb_f1300501" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300502" name="tb_f1300502" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300503" name="tb_f1300503" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">41</span></td><td class="sc-s sc-tb-r" nowrap="true"> 44</td><td class="sc-s sc-tb-r" nowrap="true"> 53</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 55</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300511" name="tb_f1300511" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300512" name="tb_f1300512" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300513" name="tb_f1300513" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">19</span></td><td class="sc-s sc-tb-r" nowrap="true"> 19</td><td class="sc-s sc-tb-r" nowrap="true"> 35</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Part-time</td><td class="sc-tb-r"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 4</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300531" name="tb_f1300531" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300532" name="tb_f1300532" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300533" name="tb_f1300533" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300541" name="tb_f1300541" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300542" name="tb_f1300542" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300543" name="tb_f1300543" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true">  </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(1060)" style="color:Black"><u>Non-First-time entering</u></a></td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="5"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Full-time</td><td class="sc-tb-r"> 18</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 7</td><td class="sc-s sc-tb-r" nowrap="true"> 7</td><td class="sc-s sc-tb-r" nowrap="true"> 39</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 11</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300561" name="tb_f1300561" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300562" name="tb_f1300562" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300563" name="tb_f1300563" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4</span></td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 36</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 7</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300571" name="tb_f1300571" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300572" name="tb_f1300572" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300573" name="tb_f1300573" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3</span></td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 43</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Part-time</td><td class="sc-tb-r"> 6</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 33</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 4</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300591" name="tb_f1300591" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300592" name="tb_f1300592" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300593" name="tb_f1300593" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 50</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 2</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300601" name="tb_f1300601" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300602" name="tb_f1300602" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300603" name="tb_f1300603" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="5"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(700)" style="color:Black">Total Entering</a></td><td class="sc-tb-r"> 166</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 69</td><td class="sc-s sc-tb-r" nowrap="true"> 72</td><td class="sc-s sc-tb-r" nowrap="true"> 43</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 102</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 47</td><td class="sc-s sc-tb-r" nowrap="true"> 50</td><td class="sc-s sc-tb-r" nowrap="true"> 49</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 64</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 22</td><td class="sc-s sc-tb-r" nowrap="true"> 22</td><td class="sc-s sc-tb-r" nowrap="true"> 34</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="5"> </td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Award and Enrollment Status at Eight Years</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="14"><b>Award and Enrollment Status at Eight Years After Entry</b><br/><b>2011-12 Entering Undergraduate Cohort</b><br/>(July 1, 2011-June 30, 2012: Full Year)<br/><br/>
+<b> Directions:</b> From the adjusted 2011-12 cohort, report the number of students who earned an award at eight years after entry for each subcohort. Report the highest award earned for each degree/certificate-seeking student for the eight-year status point (August 31, 2019) even if a student earns multiple awards.
+
+For students who did not receive an award from your institution, first report the number of students who are still enrolled at your institution, and then report the number of students who had enrolled at another institution over the eight-year period.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2" rowspan="3"><a href="javascript:openglossary(171)" style="color:Black"><b>Undergraduate Students</b></a></td><td class="sc-tb-c" rowspan="3"><b>Adjusted 2011-12 cohort</b></td><td class="sc-h sc-tb-c" colspan="6"><b>Award Status at Eight Years After Entry</b></td><td class="sc-h sc-tb-c" colspan="5"><b>Enrollment Status at Eight Years After Entry</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="3"><b>Number of students conferred an award by your institution<br/>
+(From Entry through August 31, 2019)<br/></b></td><td class="sc-tb-c" rowspan="2"><b>Total number of adjusted cohort that received an award from your institution</b></td><td class="sc-tb-c" rowspan="2"><b>Percent of adjusted cohort that received an award from your institution</b></td><td class="sc-tb-c" rowspan="2"><b><font color="red">Prior Year</font><br/>Total number of adjusted cohort that received an award from your institution</b></td><td class="sc-tb-c" colspan="4"><b>Number of students who did not receive an award from your institution <br/> (From entry through August 31, 2019)</b></td><td class="sc-tb-c" rowspan="2"><b>Percent of adjusted cohort that did not receive an award, but are still enrolled at your institution or enrolled at another institution after leaving your institution</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><a href="javascript:openglossary(105)" style="color:Black"><b>Certificates</b></a></td><td class="sc-tb-c"><a href="javascript:openglossary(55)" style="color:Black"><b>Associate's</b></a></td><td class="sc-tb-c"><a href="javascript:openglossary(77)" style="color:Black"><b>Bachelor's</b></a></td><td class="sc-tb-c"><b>Number still enrolled at your institution
+</b></td><td class="sc-tb-c"><b>Number who enrolled at another institution after leaving your institution</b></td><td class="sc-tb-c"><b>Number of students whose subsequent enrollment status is unknown</b></td><td class="sc-tb-c"><b>Total number who did not receive an award from your institution</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(241)" style="color:Black"><u>First-time entering</u></a></td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="11"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Full-time</td><td class="sc-tb-r"> 138</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 63</td><td class="sc-s sc-tb-r" nowrap="true"> 63</td><td class="sc-s sc-tb-r" nowrap="true"> 46</td><td class="sc-dbcalc-f-py sc-tb-r"> 74</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 35</td><td class="sc-s sc-tb-r" nowrap="true"> 40</td><td class="sc-s sc-tb-r" nowrap="true"> 75</td><td class="sc-s sc-tb-r" nowrap="true"> 25</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 83</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300301" name="tb_f1300301" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300302" name="tb_f1300302" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300303" name="tb_f1300303" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">44</span></td><td class="sc-s sc-tb-r" nowrap="true"> 44</td><td class="sc-s sc-tb-r" nowrap="true"> 53</td><td class="sc-dbcalc-f-py sc-tb-r"> 54</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300305" name="tb_f1300305" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300306" name="tb_f1300306" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">26</span></td><td class="sc-s sc-tb-r" nowrap="true"> 13</td><td class="sc-s sc-tb-r" nowrap="true"> 39</td><td class="sc-s sc-tb-r" nowrap="true"> 31</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 55</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300311" name="tb_f1300311" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300312" name="tb_f1300312" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300313" name="tb_f1300313" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">19</span></td><td class="sc-s sc-tb-r" nowrap="true"> 19</td><td class="sc-s sc-tb-r" nowrap="true"> 35</td><td class="sc-dbcalc-f-py sc-tb-r"> 20</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300315" name="tb_f1300315" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300316" name="tb_f1300316" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">9</span></td><td class="sc-s sc-tb-r" nowrap="true"> 27</td><td class="sc-s sc-tb-r" nowrap="true"> 36</td><td class="sc-s sc-tb-r" nowrap="true"> 16</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Part-time</td><td class="sc-tb-r"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-dbcalc-f-py sc-tb-r"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 4</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300331" name="tb_f1300331" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300332" name="tb_f1300332" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300333" name="tb_f1300333" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-dbcalc-f-py sc-tb-r"> 3</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300335" name="tb_f1300335" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300336" name="tb_f1300336" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300341" name="tb_f1300341" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300342" name="tb_f1300342" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300343" name="tb_f1300343" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true">  </td><td class="sc-dbcalc-f-py sc-tb-r"> 1</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300345" name="tb_f1300345" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300346" name="tb_f1300346" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true">  </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(1060)" style="color:Black"><u>Non-First-time entering</u></a></td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="11"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Full-time</td><td class="sc-tb-r"> 18</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 7</td><td class="sc-s sc-tb-r" nowrap="true"> 7</td><td class="sc-s sc-tb-r" nowrap="true"> 39</td><td class="sc-dbcalc-f-py sc-tb-r"> 7</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 7</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 11</td><td class="sc-s sc-tb-r" nowrap="true"> 39</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 11</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300361" name="tb_f1300361" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300362" name="tb_f1300362" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300363" name="tb_f1300363" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4</span></td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 36</td><td class="sc-dbcalc-f-py sc-tb-r"> 1</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300365" name="tb_f1300365" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300366" name="tb_f1300366" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4</span></td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 7</td><td class="sc-s sc-tb-r" nowrap="true"> 36</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 7</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300371" name="tb_f1300371" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300372" name="tb_f1300372" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300373" name="tb_f1300373" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3</span></td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 43</td><td class="sc-dbcalc-f-py sc-tb-r"> 6</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300375" name="tb_f1300375" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300376" name="tb_f1300376" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 43</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">Part-time</td><td class="sc-tb-r"> 6</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 33</td><td class="sc-dbcalc-f-py sc-tb-r"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 4</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300391" name="tb_f1300391" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300392" name="tb_f1300392" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300393" name="tb_f1300393" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 50</td><td class="sc-dbcalc-f-py sc-tb-r">  </td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300395" name="tb_f1300395" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300396" name="tb_f1300396" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 2</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300401" name="tb_f1300401" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300402" name="tb_f1300402" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300403" name="tb_f1300403" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-dbcalc-f-py sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300405" name="tb_f1300405" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1300406" name="tb_f1300406" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="11"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(700)" style="color:Black">Total Entering</a></td><td class="sc-tb-r"> 166</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 72</td><td class="sc-s sc-tb-r" nowrap="true"> 72</td><td class="sc-s sc-tb-r" nowrap="true"> 43</td><td class="sc-dbcalc-f-py sc-tb-r"> 85</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 42</td><td class="sc-s sc-tb-r" nowrap="true"> 52</td><td class="sc-s sc-tb-r" nowrap="true"> 94</td><td class="sc-s sc-tb-r" nowrap="true"> 25</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Pell Grant recipients</td><td class="sc-tb-r"> 102</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 50</td><td class="sc-s sc-tb-r" nowrap="true"> 50</td><td class="sc-s sc-tb-r" nowrap="true"> 49</td><td class="sc-dbcalc-f-py sc-tb-r"> 58</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 30</td><td class="sc-s sc-tb-r" nowrap="true"> 22</td><td class="sc-s sc-tb-r" nowrap="true"> 52</td><td class="sc-s sc-tb-r" nowrap="true"> 29</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l">    Non‑Pell Grant recipients</td><td class="sc-tb-r"> 64</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 22</td><td class="sc-s sc-tb-r" nowrap="true"> 22</td><td class="sc-s sc-tb-r" nowrap="true"> 34</td><td class="sc-dbcalc-f-py sc-tb-r"> 27</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 12</td><td class="sc-s sc-tb-r" nowrap="true"> 30</td><td class="sc-s sc-tb-r" nowrap="true"> 42</td><td class="sc-s sc-tb-r" nowrap="true"> 19</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="11"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="14"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="14"><img alt="These context notes will be posted on the College Navigator." src="images/icon_navigator.gif" style="border:none"/> You may use the space below to <b>provide context</b> for the data you've reported above.  These context notes will be posted on the College Navigator website, and should be written to be understood by students and parents.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="14" nowrap="true"> <textarea cols="54" id="cvt_f1300451" name="cvt_f1300451" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div>
+<table border="0" cellpadding="4px" cellspacing="0" class="shade" width="650"><tbody><tr><td align="left" width="500">Institution: Fisk University (220181) </td><td align="right"></td></tr></tbody></table>
+</div><div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Summary</div>
+<div>
+<style type="text/css">
+    table.grid
+    {
+        border-collapse: collapse;
+        font-size: 9px;
+    }
+    table.grid td
+    {
+        border: 1px solid #c7ddea;
+        font-size: 10px;
+        padding: 4px;
+        vertical-align: top;
+    }
+    table.grid tr.alt td
+    {
+        background-color: #F3F5F7;
+    }
+    table.grid th
+    {
+        background-color: #D2DFE5;
+        border: 1px solid #c7ddea;
+        padding: 4px;
+        text-align:center;
+    }
+    td.number
+    {
+        text-align: right;
+    }
+    td.number span
+    {
+        margin-right: 10px;
+    }
+    td.numberWide
+    {
+        text-align: right;
+    }
+    td.numberWide span
+    {
+        margin-right: 320px;
+    }
+</style>
+<div style="width:650px">
+<div style="padding-top:20px; text-align:center; font-family:Verdana; font-size:14px; font-weight:bold; color:#336699;">
+        Outcome Measures Component Summary
+    </div>
+<p id="header1">
+        IPEDS collects important information regarding your institution. All data reported in IPEDS survey 
+        components become available in the IPEDS Data Center and appear as aggregated data in various Department 
+        of Education reports. Additionally, some of the reported data appears specifically for your institution
+        through the College Navigator website.
+        The purpose of this summary is to provide you an opportunity to view some of the data that, when accepted
+        through the IPEDS quality control process, will appear on the College Navigator website.
+        College Navigator is updated approximately three months after the data collection period closes. 
+    </p>
+<p id="header2">
+        Please review your data for accuracy.  If you have questions about the data displayed below after reviewing
+        the data reported on the survey screens, please contact the IPEDS Help Desk at: 1-877-225-2568 or
+        <a href="mailto:ipedshelp@rti.org">ipedshelp@rti.org</a>.
+    </p>
+<table class="grid" id="tblOM" style="width:97%">
+<tbody><tr class="alt" id="Tr23">
+<td class="" style="width:150px;vertical-align:middle;text-align:center;">Cohort</td>
+<td class="" style="width:70px;vertical-align:middle;text-align:center;">4-year<br/>Award Rate</td>
+<td class="" style="width:70px;vertical-align:middle;text-align:center;">6-year<br/>Award Rate</td>
+<td class="" style="width:70px;vertical-align:middle;text-align:center;">8-year<br/>Award Rate</td>
+<td class="" style="width:90px;vertical-align:middle;text-align:center;">Still enrolled<br/>at your institution<br/>after 8 years</td>
+<td class="" style="width:90px;vertical-align:middle;text-align:center;">Did not receive an award and subsequently enrolled at another institution</td>
+</tr>
+<tr id="Tr240">
+<td class="" colspan="6" style="">First-time entering</td>
+</tr>
+<tr class="alt" id="Tr24">
+<td class="" style="">  Full-time</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFT_1">36%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFT_2">46%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFT_3">46%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFT_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFT_5">25%</span></td>
+</tr>
+<tr id="Tr241">
+<td class="" style="">     Pell Grant recipients</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFTPELL_1">40%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFTPELL_2">53%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFTPELL_3">53%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFTPELL_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFTPELL_5">31%</span></td>
+</tr>
+<tr class="alt" id="Tr242">
+<td class="" style="">     Non-Pell Grant recipients</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFTNONPELL_1">31%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFTNONPELL_2">35%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFTNONPELL_3">35%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFTNONPELL_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTFTNONPELL_5">16%</span></td>
+</tr>
+<tr id="Tr25">
+<td class="" style="">  Part-time</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPT_1">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPT_2">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPT_3">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPT_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPT_5">0%</span></td>
+</tr>
+<tr class="alt" id="Tr251">
+<td class="" style="">     Pell Grant recipients</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPTPELL_1">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPTPELL_2">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPTPELL_3">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPTPELL_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPTPELL_5">0%</span></td>
+</tr>
+<tr id="Tr252">
+<td class="" style="">     Non-Pell Grant recipients</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPTNONPELL_1">N/A</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPTNONPELL_2">N/A</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPTNONPELL_3">N/A</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPTNONPELL_4">N/A</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lFTPTNONPELL_5">N/A</span></td>
+</tr>
+<tr class="alt" id="Tr260">
+<td class="" colspan="6" style="">Non-First-time entering</td>
+</tr>
+<tr id="Tr26">
+<td class="" style="">  Full-time</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFT_1">39%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFT_2">39%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFT_3">39%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFT_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFT_5">39%</span></td>
+</tr>
+<tr class="alt" id="Tr261">
+<td class="" style="">     Pell Grant recipients</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFTPELL_1">36%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFTPELL_2">36%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFTPELL_3">36%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFTPELL_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFTPELL_5">36%</span></td>
+</tr>
+<tr id="Tr262">
+<td class="" style="">     Non-Pell Grant recipients</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFTNONPELL_1">43%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFTNONPELL_2">43%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFTNONPELL_3">43%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFTNONPELL_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTFTNONPELL_5">43%</span></td>
+</tr>
+<tr class="alt" id="Tr27">
+<td class="" style="">  Part-time</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPT_1">33%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPT_2">33%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPT_3">33%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPT_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPT_5">0%</span></td>
+</tr>
+<tr id="Tr271">
+<td class="" style="">     Pell Grant recipients</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPTPELL_1">50%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPTPELL_2">50%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPTPELL_3">50%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPTPELL_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPTPELL_5">0%</span></td>
+</tr>
+<tr class="alt" id="Tr272">
+<td class="" style="">     Non-Pell Grant recipients</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPTNONPELL_1">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPTNONPELL_2">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPTNONPELL_3">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPTNONPELL_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="lNFTPTNONPELL_5">0%</span></td>
+</tr>
+<tr>
+<td class="" colspan="6" style=""> </td>
+</tr>
+<tr class="alt" id="Tr28">
+<td class="" style="">Total Entering</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENT_1">36%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENT_2">43%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENT_3">43%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENT_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENT_5">25%</span></td>
+</tr>
+<tr id="Tr281">
+<td class="" style="">     Pell Grant recipients</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENTPELL_1">38%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENTPELL_2">49%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENTPELL_3">49%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENTPELL_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENTPELL_5">29%</span></td>
+</tr>
+<tr class="alt" id="Tr282">
+<td class="" style="">     Non-Pell Grant recipients</td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENTNONPELL_1">31%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENTNONPELL_2">34%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENTNONPELL_3">34%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENTNONPELL_4">0%</span></td>
+<td class="" style="vertical-align:middle;text-align:right;"><span id="TOTENTNONPELL_5">19%</span></td>
+</tr>
+</tbody></table>
+<br/>
+</div>
+</div>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div style="text-align:left">
+                    
+        		                  
+                    
+        </div></div>
+</div>
+</form>
+<div class="top"><a href="#top">Back to top</a></div>
+</body></html>

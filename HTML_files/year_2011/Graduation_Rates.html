@@ -1,0 +1,1640 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>
+	Reported Data
+</title>
+<style>
+        .page-header {
+            font-size: 16px;
+        }
+
+        @media print
+        {    
+            .page-header {
+                display: none;
+            }
+
+            .page-header-wrapper {
+                display: none;
+            }
+        }
+
+        select {
+            padding: 4px 4px;
+            font-size: 15px;
+            border-radius: 6px;
+        }
+
+        .mr-2 {
+            margin-right: 0.5em;
+        }
+
+        .mr-4 {
+            margin-right: 1em;
+        }
+
+        .mr-8 {
+            margin-right: 2em;
+        }
+
+        .btn {
+            border: 1px solid #999;
+            padding: 1px 10px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .loading-data {
+            margin: 20px auto 0 auto;
+            width: 150px;
+            text-align: center;
+        }
+
+        #top {
+            position: relative;
+            top: -100px;
+        }
+
+        .top {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            padding: 5px 5px;
+            background-color: #eee;
+            text-align: center;
+        }
+
+        .top a:link,
+        .top a:visited,
+        .top a:hover {
+            text-decoration: none;
+            color: #333;
+        }
+
+        .no-survey-found {
+            background-color: #f7f7f7;
+            padding: 20px 20px;
+            font-size: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .no-survey-found.show {
+            display: block;
+        }
+
+        #survey_content {
+            border:0px solid red;
+            margin-top: 20px;
+            padding-top: 10px;
+        }
+        .note-message {
+            padding: 8px 12px;
+            background-color: #fcfbec;
+            border:1px solid #c6c4a5;
+            border-radius:4px;
+            display:none;
+            font-size:13px;
+        }
+        .note-message.show {
+            display: block;
+        }
+    </style>
+<script src="scripts/jquery-3.6.0.js" type="text/javascript"></script>
+<script>
+        let year = 2011;
+        let prevYear = 2011;
+        let unitId = 220181;
+        let surveyNumber = 8;
+
+        function removeFacsimileStyleFiles() {
+            $('[data-year="2020"]').remove();
+            $('[data-year="2006"]').remove();
+            $('[data-year="2005"]').remove();
+            $('[data-year="20002004"]').remove();
+        }
+
+        function addFacsimileStyleFile() {
+            // update year
+            if (year >= 2020) {
+                addCssFile('facsimile/assets/css/styles.css', '2020');
+            } else if (year >= 2000 && year <= 2004) {
+                addCssFile('styles/fm_style00_04.css', '20002004');
+                addCssFile('styles/fm_style00_04_fixes.css', '20002004');
+            } else if (year === 2005) {
+                addCssFile('styles/fm_style05.css', '2005');
+            }
+            else if (year > 2005) {
+                addCssFile('styles/facsimile.css', '2006');
+            }
+        }
+
+        function addCssFile(fileName, dataYearAttr) {
+            var cssRef = document.createElement("link");
+            cssRef.setAttribute("rel", "stylesheet");
+            cssRef.setAttribute("type", "text/css");
+            cssRef.setAttribute("href", fileName);
+            cssRef.setAttribute('data-year', dataYearAttr);
+            document.getElementsByTagName("head")[0].appendChild(cssRef)
+        }
+
+        function loadContent() {
+            $('#survey_content').html('<div class="loading-data"><h2>Loading data...</h2></div>');
+            $('.no-survey-found').removeClass('show');
+            $('#data-revised-note').removeClass('show');
+            $('#data-not-revised-note').removeClass('show');
+           
+            $.ajax({
+                url: 'FacsimileView.aspx?action=data&year=' + year + '&prevYear=' + prevYear + '&unitId=' + unitId + '&surveyNumber=' + surveyNumber,
+                type: "GET",
+                cache: false,
+                success: function (data) {
+                    prevYear = year;
+                    var json = JSON.parse(data);
+                    $('#survey_content').html(json.SurveyHtml);
+
+                    //***************
+                    $('#data-not-revised-note').removeClass('show');
+                    $('#latest-year-data-not-revised-note').removeClass('show');
+                    $('#pre-2014-data-not-revised-note').removeClass('show');
+                    $('#data-revised-note').removeClass('show');
+
+                    // Message about revised data:
+                    if (year >= 2022 ) {
+                        $('#latest-year-data-not-revised-note').addClass('show');
+                    }
+                    else if (year >= 2014 && year<=2021) {
+
+                        if (json.DataRevised === true)
+                            $('#data-revised-note').addClass('show');
+                        else //if (json.DataRevised === false)
+                            $('#data-not-revised-note').addClass('show');
+                    }
+                    else
+                        $('#pre-2014-data-not-revised-note').addClass('show');
+
+
+                    const container = document.getElementById('survey_content');
+
+                    // Get all buttons within the container
+                    const buttons = container.querySelectorAll('button');
+
+                    // Loop through each button and disable it
+                    buttons.forEach(button => {
+                        button.disabled = true;
+                    });
+
+
+                    if (json.Surveys) {
+                        // we need to create new values in Survey dropdown
+                        let dropdown = $('#select-surveys')[0];
+                        // first remove all elements
+                        while (dropdown.options.length > 0)
+                            dropdown.remove(0);
+
+                        let surveyNumbers = Object.keys(json.Surveys);
+                        let surveyNumberExistsInDifferentYear = false;
+                        for (let i = 0; i < surveyNumbers.length; i++) {
+                            let opt = document.createElement('option');
+                            opt.value = surveyNumbers[i];
+                            if (surveyNumbers[i] == surveyNumber) {
+                                surveyNumberExistsInDifferentYear = true;
+                                opt.selected = true;
+                            }
+                            opt.innerHTML = json.Surveys[surveyNumbers[i]];
+                            dropdown.appendChild(opt);
+                        }
+                        // if survey does not exists, add empty <option>
+                        if (surveyNumberExistsInDifferentYear == false) {
+                            let opt = document.createElement('option');
+                            opt.value = '';
+                            opt.innerHTML = 'Select a survey';
+                            opt.selected = true;
+                            dropdown.add(opt, dropdown.options[0]);
+                            $('.no-survey-found').addClass('show');
+                            $('#data-not-revised-note').removeClass('show');
+                        }                       
+                            
+                    }
+
+                    // Update url to reflect selected year/survey
+                    //let newUrl = new URL(window.location.href);
+                    //let params = new URLSearchParams(newUrl.search);
+                    
+                   
+                    //params.set('year', year);
+                    //params.set('surveyNumber', surveyNumber)
+
+
+                    let searchParams = new URLSearchParams(window.location.search);
+
+                    searchParams.delete("surveynumber");
+                    searchParams.delete("year");
+                    searchParams.set('year', year);
+                    searchParams.set('surveyNumber', surveyNumber)
+
+                    if (window.history.replaceState) {
+                        const url = window.location.protocol
+                            + "//" + window.location.host
+                            + window.location.pathname
+                            + "?"
+                            + searchParams.toString();
+
+                        window.history.replaceState({
+                            path: url
+                        }, "", url)
+                    }
+
+
+                },
+                error: function (xhr, err) {
+                    console.log("Status: " + xhr.status + "\nResponse Text:" + xhr.responseText);
+                }
+            });
+        }
+
+        function selectSurvey(ev) {
+            surveyNumber = ev.target.value;
+            loadContent();
+        }
+
+        function selectYear(ev) {
+            year = +ev.target.value;
+            loadContent();
+
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+        }
+
+        function updateURLParameter(url, param, paramVal) {
+            let TheAnchor = null;
+            let newAdditionalURL = "";
+            let tempArray = url.split("?");
+            let baseURL = tempArray[0];
+            let additionalURL = tempArray[1];
+            let temp = "";
+
+            if (additionalURL) {
+                var tmpAnchor = additionalURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+                if (TheAnchor)
+                    additionalURL = TheParams;
+
+                tempArray = additionalURL.split("&");
+
+                for (var i = 0; i < tempArray.length; i++) {
+                    if (tempArray[i].split('=')[0] != param) {
+                        newAdditionalURL += temp + tempArray[i];
+                        temp = "&";
+                    }
+                }
+            }
+            else {
+                var tmpAnchor = baseURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+
+                if (TheParams)
+                    baseURL = TheParams;
+            }
+
+            if (TheAnchor)
+                paramVal += "#" + TheAnchor;
+
+            var rows_txt = temp + "" + param + "=" + paramVal;
+            return baseURL + "?" + newAdditionalURL + rows_txt;
+        }
+
+        
+
+        $(document).ready(function () {
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+            loadContent();
+        });
+
+        function printPage() {
+            window.print();
+        }
+    </script>
+<link data-year="2006" href="styles/facsimile.css" rel="stylesheet" type="text/css"/></head>
+<body>
+<div class="page-header-wrapper" style="background-color: #eee; padding: 18px 6px;">
+<div class="page-header" style="width: 90%; margin: 0 auto;">
+<div style="display: flex; align-items: center!important;">
+<div class="mr-4">Reported Data: Fisk University </div>
+<div class="mr-4">|</div>
+<div class="mr-2">Select year:</div>
+<div class="mr-4">
+<select onchange="selectYear(event)">
+<option value="2022">2022</option>
+<option value="2021">2021</option>
+<option value="2020">2020</option>
+<option value="2019">2019</option>
+<option value="2018">2018</option>
+<option value="2017">2017</option>
+<option value="2016">2016</option>
+<option value="2015">2015</option>
+<option value="2014">2014</option>
+<option value="2013">2013</option>
+<option value="2012">2012</option>
+<option selected="" value="2011">2011</option>
+<option value="2010">2010</option>
+<option value="2009">2009</option>
+<option value="2008">2008</option>
+<option value="2007">2007</option>
+<option value="2006">2006</option>
+<option value="2005">2005</option>
+<option value="2004">2004</option>
+<option value="2003">2003</option>
+<option value="2002">2002</option>
+<option value="2001">2001</option>
+</select>
+</div>
+<div class="mr-2">Select survey:</div>
+<div class="mr-2">
+<select id="select-surveys" onchange="selectSurvey(event)">
+<option value="1">Institutional Characteristics</option>
+<option value="15">Fall Enrollment</option>
+<option value="14">12-Month Enrollment</option>
+<option value="3">Completions</option>
+<option selected="" value="8">Graduation Rates</option>
+<option value="22">GR200</option>
+<option value="7">Student Financial Aid and Net Price</option>
+<option value="6">Finance</option>
+<option value="9">Human Resources</option>
+</select>
+</div>
+<div style="flex: 1 1 auto!important;"> </div>
+<div>
+<button class="mr-4 btn">
+<img onclick="printPage()" src="images/printer-svgrepo-com.svg" style="width: 15px"/>
+</button>
+<a href="Facsimile.aspx?unitId=220181">
+<img src="images/icon_close.svg" style="width: 25px"/>
+</a>
+</div>
+</div>
+</div>
+</div>
+<a id="top"></a>
+<form action="./facsimileView.aspx?unitid=220181&amp;surveynumber=8&amp;year=2011&amp;goToReportId=6" id="form1" method="post" name="form1">
+<div>
+<input id="__VIEWSTATE" name="__VIEWSTATE" type="hidden" value="/wEPDwUJNDk4MDAyNjQ0ZGQ1Rt5I0VdqjyBZxpj37FRHeGkbkoRpCmohM64NK8Nn3w=="/>
+</div>
+<div>
+<input id="__VIEWSTATEGENERATOR" name="__VIEWSTATEGENERATOR" type="hidden" value="3C3AC055"/>
+</div>
+<div style="width: 1000px; margin: 0 auto;">
+<div class="note-message" id="data-not-revised-note">Note: Institution did NOT submit revisions through the Prior Year Data Revision System for selected collection year and survey.</div>
+<div class="note-message" id="data-revised-note">Note: Reported data includes revisions made through the Prior Year Data Revision System for  selected collection year and survey.</div>
+<div class="note-message show" id="pre-2014-data-not-revised-note">Note: Reported data do not include revisions made through the Prior Year Data Revision System for any institution prior to collection year 2014.</div>
+<div class="note-message" id="latest-year-data-not-revised-note">Note: Revisions made through the Prior Year Data Revision System are not available for the selected collection year.</div>
+<div class="no-survey-found">
+                Please select survey from dropdown above
+            </div>
+<div id="survey_content"><div class="facsimile_assets"><table border="0" cellpadding="0" cellspacing="0" id="Table3" width="650">
+<tbody><tr>
+<td align="left">
+<table border="0" cellpadding="0" cellspacing="0" id="tblHeader" width="650">
+<tbody><tr>
+<td colspan="2" style="line-height:20px; height:30px; vertical-align:middle;">
+<div align="center" class="pagetitle" style="height:100%; padding-top:10px;">
+<span id="lblSurveyName">Graduation Rates, status as of August 31, 2011</span>
+</div>
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Screening questions</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="4">Does your institution post the Student-Right-to-Know student athlete graduation rates on a website?</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-r" nowrap="true"> <input checked="true" type="radio" value="2"/> </td><td class="sc-tb-l" colspan="3">No.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-r" nowrap="true"> <input type="radio" value="1"/> </td><td class="sc-tb-l">Yes. Please provide the URL.</td><td class="sc-tb-r">http://</td><td class="sc-tb-l" nowrap="true"><input class="sc-text-tbn" maxlength="150" style="width:420px;" type="text" value=""/></td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l">Based on your institution's response to the predominant calendar system question (B3) on the Institutional Characteristics Header survey from the IPEDS Fall 2011 Data Collection, your institution must report graduation rates data using a</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><b>Fall Cohort</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l"><i>A fall cohort is used by institutions with standard academic terms (semester, trimester, quarter, 4-1-4). A full-year cohort is used by institutions offering primarily occupational/vocational programs and operating on a continuous basis.
+</i></td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="5"><img alt="These context notes will be posted on the College Navigator." src="images/icon_navigator.gif" style="border:none"/> You may use the space below to <b>provide context</b> for the data you've reported above.  These context notes will be posted on the College Navigator website, and should be written to be understood by students and parents.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5" nowrap="true"> <textarea cols="54" id="cvt_f7908" name="cvt_f7908" onchange='return trTxt(this, 999,"Text was too long and has been shortened. Please be concise." );' oninput='return trTxt(this, 999,"Text was too long and has been shortened. Please be concise." );' onkeyup='return trTxt(this, 999,"Text was too long and has been shortened. Please be concise." );' onpaste='return trTxt(this, 999,"Text was too long and has been shortened. Please be concise." );' rows="2" style="width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Section I - Graduation Rate - Establishing cohorts</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="3">Establishing cohorts</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3"><p>NOTE: Reporting using the new race categories is now mandatory. On this screen you will need to revise your 2005 cohort to the new race/ethnicity categories. For information and assistance with this, please visit <a href="http://www.airweb.org/page.asp?page=1502">AIR's Race/Ethnicity FAQ</a> page.</p></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Screen 1 of 2</td><td class="sc-tb-c" colspan="2"><a href="javascript:openglossary(119)">Cohort</a> year 2005</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" rowspan="2"> </td><td class="sc-tb-c"><a href="javascript:openglossary(307)" style="color:Black">Initial cohort</a></td><td class="sc-tb-c"><a href="javascript:openglossary(563)" style="color:Black">Revised cohort</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"> </td><td class="sc-tb-c">(01)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="3"><b>Men</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-z sc-tb-l" colspan="3"><b>NEW categories:</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3">Notes for NEW categories:<div style="padding-left:20px;"><li class="sc-tb-l">Report Hispanic/Latino individuals of any race as Hispanic/Latino</li><li class="sc-tb-l">Report race for non-Hispanic/Latino individuals only</li></div></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="53"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-z sc-tb-l" colspan="3"><b>OLD categories:</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Black, non-Hispanic</td><td class="sc-tb-r"> 53</td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">American Indian/Alaska Native</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Asian/Pacific Islander</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Hispanic</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">White, non-Hispanic</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-z sc-tb-l" colspan="3"><b>Categories used in BOTH New and Old:</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r"> 3</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="3"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total men</b></td><td class="sc-s sc-tb-r"> 56</td><td class="sc-s sc-tb-r" nowrap="true"> 56</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="3"><b>Women</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-z sc-tb-l" colspan="3"><b>NEW categories:</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3">Notes for NEW categories:<div style="padding-left:20px;"><li class="sc-tb-l">Report Hispanic/Latino individuals of any race as Hispanic/Latino</li><li class="sc-tb-l">Report race for non-Hispanic/Latino individuals only</li></div></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="2"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="149"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="1"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-z sc-tb-l" colspan="3"><b>OLD categories:</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Black, non-Hispanic</td><td class="sc-tb-r"> 149</td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">American Indian/Alaska Native</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Asian/Pacific Islander</td><td class="sc-tb-r"> 2</td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Hispanic</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">White, non-Hispanic</td><td class="sc-tb-r"> 1</td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-z sc-tb-l" colspan="3"><b>Categories used in BOTH New and Old:</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="2"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="2"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total women</b></td><td class="sc-s sc-tb-r"> 156</td><td class="sc-s sc-tb-r" nowrap="true"> 156</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-g sc-tb-l">Total men + women</td><td class="sc-g sc-tb-r"> 212</td><td class="sc-s sc-tb-r" nowrap="true"> 212</td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Section I - Graduation Rate - Establishing cohorts</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="4"><div style="padding-left:20px;"><li class="sc-tb-l">Incoming students that are seeking a bachelors degree should be reported in column 02.  While column 3 will then be generated, it is meant to include any first-time, full-time entering students who are seeking an associates degree or undergraduate certificates.</li><li class="sc-tb-l">If you have no changes to the preloaded data on this screen, you must click the "Save and Next" button to generate screens to report completers and transfers.</li></div></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-c" colspan="4">Establishing cohorts</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="4"><div style="padding-left:20px;"><li class="sc-tb-sub-header_bullet">Report Hispanic/Latino individuals of any race as Hispanic/Latino</li><li class="sc-tb-sub-header_bullet">Report race for non-Hispanic/Latino individuals only</li></div></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 2 of 2</td><td class="sc-tb-c" colspan="3"><a href="javascript:openglossary(119)">Cohort</a> year 2005</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" rowspan="2"> </td><td class="sc-tb-c">Cohort</td><td class="sc-tb-c"><a href="javascript:openglossary(79)" style="color:Black">Bachelor's or equivalent<br/> degree-seeking subcohort</a></td><td class="sc-tb-c"><a href="javascript:openglossary(441)" style="color:Black">Other degree-seeking<br/>subcohort<br/>
+(Revised cohort – Bachelor’s or equivalent degree-seeking subcohort)</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">(01)</td><td class="sc-tb-c">(02)</td><td class="sc-tb-c">(03)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="4"><b>Men</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r"> 3</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="3"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r"> 53</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="53"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total men</b></td><td class="sc-s sc-tb-r"> 56</td><td class="sc-s sc-tb-r" nowrap="true"> 56</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="9"><b>Women</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="2"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="2"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r"> 149</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="149"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r"> 1</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="1"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="2"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l"><b>Total women</b></td><td class="sc-s sc-tb-r"> 156</td><td class="sc-s sc-tb-r" nowrap="true"> 156</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-g sc-tb-l">Total men + women</td><td class="sc-g sc-tb-r"> 212</td><td class="sc-s sc-tb-r" nowrap="true"> 212</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Section II - Graduation Rate - Completers within 150%</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"><div style="padding-left:20px;"><li class="sc-tb-l">In the columns below, report the status of the Bachelor's degree-seeking students reported in the subcohort in Col 10.</li><li class="sc-tb-l">Those undergraduate students who attained OTHER THAN A BACHELOR'S DEGREE within 150% of normal time as of August 31, 2011 should be reported in either Col 11 or 12, depending on the length of the program.</li><li class="sc-tb-l">Those who attained a bachelor's degree or equivalent within 150% or normal time should be reported in Col 18.</li></div></td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-c" colspan="6">Subcohort of full-time, <a href="javascript:openglossary(241)">first-time students</a> seeking a bachelor's or equivalent degree</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6"><div style="padding-left:20px;"><li class="sc-tb-sub-header_bullet">Report Hispanic/Latino individuals of any race as Hispanic/Latino</li><li class="sc-tb-sub-header_bullet">Report race for non-Hispanic/Latino individuals only</li></div></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 1 of 4</td><td class="sc-tb-c" colspan="5"><a href="javascript:openglossary(119)">Cohort</a> year 2005</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" rowspan="2"> </td><td class="sc-tb-c" rowspan="2"><a href="javascript:openglossary(79)" style="color:Black">Bachelor's or equivalent degree-seeking subcohort</a></td><td class="sc-tb-c" colspan="3">Subcohort students who completed their program within 150% of <a href="javascript:openglossary(421)">normal time to completion</a></td><td class="sc-tb-c" rowspan="2">Total <a href="javascript:openglossary(131)">completers within 150%</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">Completers of programs of <br/>&lt;2-yrs</td><td class="sc-tb-c">Completers of programs of <br/>2&lt;4-yrs</td><td class="sc-tb-c">Completers of bachelor's or equivalent degrees</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">(10)</td><td class="sc-tb-c">(11)</td><td class="sc-tb-c">(12)</td><td class="sc-tb-c">(18)</td><td class="sc-tb-c">(29)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="6"><b>Men</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r"> 3</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="3"/></td><td class="sc-s sc-tb-r" nowrap="true"> 3</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r"> 53</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="21"/></td><td class="sc-s sc-tb-r" nowrap="true"> 21</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l"><b>Total men</b></td><td class="sc-s sc-tb-r"> 56</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> 24</td><td class="sc-s sc-tb-r" nowrap="true"> 24</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="9"><b>Women</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="1"/></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r"> 149</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="71"/></td><td class="sc-s sc-tb-r" nowrap="true"> 71</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r"> 1</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total women</b></td><td class="sc-s sc-tb-r"> 156</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> 72</td><td class="sc-s sc-tb-r" nowrap="true"> 72</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-g sc-tb-l">Total men + women</td><td class="sc-g sc-tb-r"> 212</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> 96</td><td class="sc-s sc-tb-r" nowrap="true"> 96</td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Section II - Graduation Rate - Bachelor's completers by length of time to degree</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"><div style="padding-left:20px;"><li class="sc-tb-l">The students who attained a bachelor's degree or equivalent as reported on the previous page are listed in Col 18. For the other columns below, report these completers according to how long it took them to complete the program.</li></div></td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-c" colspan="6">Subcohort of full-time, <a href="javascript:openglossary(241)">first-time students</a> seeking a bachelor's or equivalent degree</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6"><div style="padding-left:20px;"><li class="sc-tb-sub-header_bullet">Report Hispanic/Latino individuals of any race as Hispanic/Latino</li><li class="sc-tb-sub-header_bullet">Report race for non-Hispanic/Latino individuals only</li></div></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 2 of 4</td><td class="sc-tb-c" colspan="5"><a href="javascript:openglossary(119)">Cohort</a> year 2005</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" rowspan="2"> </td><td class="sc-tb-c" rowspan="2"><a href="javascript:openglossary(79)" style="color:Black">Bachelor's or equivalent degree-seeking subcohort</a></td><td class="sc-tb-c" rowspan="2">Completed bachelor's degree <br/>or equivalent within 150%</td><td class="sc-tb-c" colspan="3">Subcohort students who attained a <a href="javascript:openglossary(77)">bachelor's degree</a> or equivalent</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">Completed the program in <br/>4 yrs or less</td><td class="sc-tb-c">Completed the program in <br/>5 yrs</td><td class="sc-tb-c">Completed the program in <br/>6 yrs</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">(10)</td><td class="sc-tb-c">(18)</td><td class="sc-tb-c">(19)</td><td class="sc-tb-c">(20)</td><td class="sc-tb-c">(21)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="6"><b>Men</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r"> 3</td><td class="sc-tb-r"> 3</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="3"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r"> 53</td><td class="sc-tb-r"> 21</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="10"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="9"/></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l"><b>Total men</b></td><td class="sc-s sc-tb-r"> 56</td><td class="sc-s sc-tb-r"> 24</td><td class="sc-s sc-tb-r" nowrap="true"> 13</td><td class="sc-s sc-tb-r" nowrap="true"> 9</td><td class="sc-s sc-tb-r" nowrap="true"> 2</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="9"><b>Women</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r"> 1</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="1"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r"> 149</td><td class="sc-tb-r"> 71</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="65"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="5"/></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r"> 1</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total women</b></td><td class="sc-s sc-tb-r"> 156</td><td class="sc-s sc-tb-r"> 72</td><td class="sc-s sc-tb-r" nowrap="true"> 66</td><td class="sc-s sc-tb-r" nowrap="true"> 5</td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-g sc-tb-l">Total men + women</td><td class="sc-g sc-tb-r"> 212</td><td class="sc-g sc-tb-r"> 96</td><td class="sc-s sc-tb-r" nowrap="true"> 79</td><td class="sc-s sc-tb-r" nowrap="true"> 14</td><td class="sc-s sc-tb-r" nowrap="true"> 3</td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Section II - Graduation Rate - Transfers/exclusions</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"><div style="padding-left:20px;"><li class="sc-tb-l">In the columns below, report the status of the BACHELOR'S DEGREE-SEEKING STUDENTS reported in the subcohort in Col 10, who did not complete a program as of August 31, 2011.</li><li class="sc-tb-l">Report transfers-out who did not complete a program in Col 30.  If the mission of your institution includes providing substantial preparation for students to enroll in another eligible institution WITHOUT having completed their programs, you must report transfer-out data in column 30.  A school is required to report only on those students that the school knows have transferred to another school.  A school must document that the student actually transferred.  If it is not part of your mission, you may report transfer-out data if you wish.</li></div></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><div style="padding-left:20px;"><li class="sc-tb-l">Report exclusions from the cohort in Col 45. The ONLY allowable categories for this column are:<br/>students who died or became permanently disabled<br/>students who left school to serve in the armed forces (or have been called up to active duty)<br/>students who left school to serve with a foreign aid service of the Federal Government<br/>students who left school to serve on an official church mission </li><li class="sc-tb-l">Col 52 [No longer enrolled] will be calculated for you.  This includes students who have dropped out or who completed in greater than 150% of normal time.</li><li class="sc-tb-l">If you do not have any values to enter in either columns 30, 45, or 51, you must enter at least one zero in a field on this screen</li></div></td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="7">Subcohort of full-time, <a href="javascript:openglossary(241)">first-time students</a> seeking a bachelor's or equivalent degree</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="7"><div style="padding-left:20px;"><li class="sc-tb-sub-header_bullet">Report Hispanic/Latino individuals of any race as Hispanic/Latino</li><li class="sc-tb-sub-header_bullet">Report race for non-Hispanic/Latino individuals only</li></div></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Screen 3 of 4</td><td class="sc-tb-c" colspan="6"><a href="javascript:openglossary(119)">Cohort</a> year 2005</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" rowspan="2"> </td><td class="sc-tb-c"><a href="javascript:openglossary(79)" style="color:Black">Bachelor's or equivalent<br/> degree-seeking subcohort</a></td><td class="sc-tb-c">Total <a href="javascript:openglossary(131)">completers<br/>within 150%</a></td><td class="sc-tb-c"><a href="javascript:openglossary(657)" style="color:Black">Total transfer-out students <br/></a></td><td class="sc-tb-c">Total <a href="javascript:openglossary(207)">exclusions</a></td><td class="sc-tb-c">Still enrolled</td><td class="sc-tb-c">No longer enrolled</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">(10)</td><td class="sc-tb-c">(29)</td><td class="sc-tb-c">(30)</td><td class="sc-tb-c">(45)</td><td class="sc-tb-c">(51)</td><td class="sc-tb-c">(52)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="8"><b>Men</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r"> 3</td><td class="sc-tb-r"> 3</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r"> 53</td><td class="sc-tb-r"> 21</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 32</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l"><b>Total men</b></td><td class="sc-s sc-tb-r"> 56</td><td class="sc-s sc-tb-r"> 24</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> 32</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="9"><b>Women</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r"> 1</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r"> 149</td><td class="sc-tb-r"> 71</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 78</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r"> 1</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r"> 2</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" maxlength="7" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total women</b></td><td class="sc-s sc-tb-r"> 156</td><td class="sc-s sc-tb-r"> 72</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> 84</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-g sc-tb-l">Total men + women</td><td class="sc-g sc-tb-r"> 212</td><td class="sc-g sc-tb-r"> 96</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> 116</td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Graduation and transfer-out rates</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="7">Calculation of graduation and transfer-out rates</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 1 of 2</td><td class="sc-tb-c" colspan="7"><a href="javascript:openglossary(119)">Cohort</a> year 2005</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"><a href="javascript:openglossary(563)" style="color:Black">Revised cohort</a></td><td class="sc-tb-c">Total <a href="javascript:openglossary(207)">exclusions</a></td><td class="sc-tb-c">Total <a href="javascript:openglossary(131)">completers within 150%&gt;</a></td><td class="sc-tb-c">Total<br/><a href="javascript:openglossary(657)">transfer-out<br/>students</a></td><td class="sc-tb-c"><a href="javascript:openglossary(812)" style="color:Black">Graduation rate</a></td><td class="sc-tb-c"><a href="javascript:openglossary(655)" style="color:Black">Transfer-out rate</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l" colspan="5"><b>Overall Rates, will be displayed on College Navigator</b></td><td class="sc-s sc-tb-r" nowrap="true"> 45</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="7"><b>Men</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 100</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-s sc-tb-r" nowrap="true"> 53</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 21</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 40</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total men</b></td><td class="sc-s sc-tb-r" nowrap="true"> 56</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 24</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 43</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="9"><b>Women</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 50</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-s sc-tb-r" nowrap="true"> 149</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 71</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 48</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Two or more races</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l"><b>Total women</b></td><td class="sc-s sc-tb-r" nowrap="true"> 156</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 72</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 46</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="7"><b>Total (men and women)</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-s sc-tb-r" nowrap="true"> 5</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 80</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-s sc-tb-r" nowrap="true"> 202</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 92</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 46</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total</b></td><td class="sc-s sc-tb-r" nowrap="true"> 212</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 96</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 45</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Graduation and transfer-out rates by length of time to degree</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="9">Calculation of graduation rates</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 2 of 2</td><td class="sc-tb-c" colspan="8"><a href="javascript:openglossary(119)">Cohort</a> year 2005</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"><a href="javascript:openglossary(563)" style="color:Black">Revised cohort</a></td><td class="sc-tb-c">Total <a href="javascript:openglossary(207)">exclusions</a></td><td class="sc-tb-c">Completed bachelor's <br/>degree in 4 or less years</td><td class="sc-tb-c">Completed bachelor's <br/>degree in 5 or less years</td><td class="sc-tb-c">Completed bachelor's <br/> degree in 6 or less years</td><td class="sc-tb-c">4 year <a href="javascript:openglossary(812)">graduation rate</a></td><td class="sc-tb-c">5 year <a href="javascript:openglossary(812)">graduation rate</a></td><td class="sc-tb-c">6 year <a href="javascript:openglossary(812)">graduation rate</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l" colspan="9"><b>Graduation rates displayed below in bold italics will be displayed on College Navigator.</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="9"><b>Men</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 100</td><td class="sc-s sc-tb-r" nowrap="true"> 100</td><td class="sc-s sc-tb-r" nowrap="true"> 100</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-s sc-tb-r" nowrap="true"> 53</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 10</td><td class="sc-s sc-tb-r" nowrap="true"> 19</td><td class="sc-s sc-tb-r" nowrap="true"> 21</td><td class="sc-s sc-tb-r" nowrap="true"> 19</td><td class="sc-s sc-tb-r" nowrap="true"> 36</td><td class="sc-s sc-tb-r" nowrap="true"> 40</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total men</b></td><td class="sc-s sc-tb-r" nowrap="true"> 56</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 13</td><td class="sc-s sc-tb-r" nowrap="true"> 22</td><td class="sc-s sc-tb-r" nowrap="true"> 24</td><td class="sc-s sc-tb-r" nowrap="true"> 23</td><td class="sc-s sc-tb-r" nowrap="true"> 39</td><td class="sc-si sc-tb-r" nowrap="true"> 43</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="9"><b>Women</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 50</td><td class="sc-s sc-tb-r" nowrap="true"> 50</td><td class="sc-s sc-tb-r" nowrap="true"> 50</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-s sc-tb-r" nowrap="true"> 149</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 65</td><td class="sc-s sc-tb-r" nowrap="true"> 70</td><td class="sc-s sc-tb-r" nowrap="true"> 71</td><td class="sc-s sc-tb-r" nowrap="true"> 44</td><td class="sc-s sc-tb-r" nowrap="true"> 47</td><td class="sc-s sc-tb-r" nowrap="true"> 48</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Two or more races</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l"><b>Total women</b></td><td class="sc-s sc-tb-r" nowrap="true"> 156</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 66</td><td class="sc-s sc-tb-r" nowrap="true"> 71</td><td class="sc-s sc-tb-r" nowrap="true"> 72</td><td class="sc-s sc-tb-r" nowrap="true"> 42</td><td class="sc-s sc-tb-r" nowrap="true"> 46</td><td class="sc-si sc-tb-r" nowrap="true"> 46</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="9"><b>Total (men and women)</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-s sc-tb-r" nowrap="true"> 5</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 80</td><td class="sc-s sc-tb-r" nowrap="true"> 80</td><td class="sc-si sc-tb-r" nowrap="true"> 80</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-si sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-si sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-si sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-s sc-tb-r" nowrap="true"> 202</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 75</td><td class="sc-s sc-tb-r" nowrap="true"> 89</td><td class="sc-s sc-tb-r" nowrap="true"> 92</td><td class="sc-s sc-tb-r" nowrap="true"> 37</td><td class="sc-s sc-tb-r" nowrap="true"> 44</td><td class="sc-si sc-tb-r" nowrap="true"> 46</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-si sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-si sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-s sc-tb-r" nowrap="true"> </td><td class="sc-si sc-tb-r" nowrap="true"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-si sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total</b></td><td class="sc-s sc-tb-r" nowrap="true"> 212</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 79</td><td class="sc-s sc-tb-r" nowrap="true"> 93</td><td class="sc-s sc-tb-r" nowrap="true"> 96</td><td class="sc-s sc-tb-r" nowrap="true"> 37</td><td class="sc-s sc-tb-r" nowrap="true"> 44</td><td class="sc-si sc-tb-r" nowrap="true"> 45</td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Graduation rates</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="6">Calculation of 4-year average rates: Cohort adjustment</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 1 of 3</td><td class="sc-tb-c">2002</td><td class="sc-tb-c">2003</td><td class="sc-tb-c">2004</td><td class="sc-tb-c">2005</td><td class="sc-tb-c">4-year Total</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="6">Men</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(563)">Revised cohort</a> (I,01)</td><td class="sc-tb-r"> 64</td><td class="sc-tb-r"> 57</td><td class="sc-tb-r"> 63</td><td class="sc-s sc-tb-r" nowrap="true"> 56</td><td class="sc-s sc-tb-r" nowrap="true"> 240</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total <a href="javascript:openglossary(207)">exclusions</a> (II,45)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total <a href="javascript:openglossary(207)">exclusions</a> (III,45)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(29)" style="color:Black">Adjusted cohort</a></td><td class="sc-tb-r"> 64</td><td class="sc-tb-r"> 57</td><td class="sc-tb-r"> 63</td><td class="sc-s sc-tb-r" nowrap="true"> 56</td><td class="sc-s sc-tb-r" nowrap="true"> 240</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="6">Women</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(563)">Revised cohort</a> (I,01)</td><td class="sc-tb-r"> 141</td><td class="sc-tb-r"> 142</td><td class="sc-tb-r"> 109</td><td class="sc-s sc-tb-r" nowrap="true"> 156</td><td class="sc-s sc-tb-r" nowrap="true"> 548</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total <a href="javascript:openglossary(207)">exclusions</a> (II,45)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total <a href="javascript:openglossary(207)">exclusions</a> (III,45)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(29)" style="color:Black">Adjusted cohort</a></td><td class="sc-tb-r"> 141</td><td class="sc-tb-r"> 142</td><td class="sc-tb-r"> 109</td><td class="sc-s sc-tb-r" nowrap="true"> 156</td><td class="sc-s sc-tb-r" nowrap="true"> 548</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="6">Total (men and women)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(563)">Revised cohort</a> (I,01)</td><td class="sc-tb-r"> 205</td><td class="sc-tb-r"> 199</td><td class="sc-tb-r"> 172</td><td class="sc-s sc-tb-r" nowrap="true"> 212</td><td class="sc-s sc-tb-r" nowrap="true"> 788</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total <a href="javascript:openglossary(207)">exclusions</a> (II,45)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total <a href="javascript:openglossary(207)">exclusions</a> (III,45)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(29)" style="color:Black">Adjusted cohort</a></td><td class="sc-tb-r"> 205</td><td class="sc-tb-r"> 199</td><td class="sc-tb-r"> 172</td><td class="sc-s sc-tb-r" nowrap="true"> 212</td><td class="sc-s sc-tb-r" nowrap="true"> 788</td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Graduation rates</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="6">Calculation of 4-year average rates: Completers within 150% of normal time</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 2 of 3</td><td class="sc-tb-c">2002</td><td class="sc-tb-c">2003</td><td class="sc-tb-c">2004</td><td class="sc-tb-c">2005</td><td class="sc-tb-c">4-year Total</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="6">Men</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">&lt;2-yr completers (II,11)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">2&lt;4-yr completers (II,12)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Bachelor's completers (II,18)</td><td class="sc-tb-r"> 30</td><td class="sc-tb-r"> 21</td><td class="sc-tb-r"> 35</td><td class="sc-s sc-tb-r" nowrap="true"> 24</td><td class="sc-s sc-tb-r" nowrap="true"> 110</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">&lt;2-yr completers (III,11)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">2&lt;4-yr completers (III,12)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Bachelor's completers (III,18)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total <a href="javascript:openglossary(131)">completers within 150%</a><a></a></td><td class="sc-tb-r"> 30</td><td class="sc-tb-r"> 21</td><td class="sc-tb-r"> 35</td><td class="sc-s sc-tb-r" nowrap="true"> 24</td><td class="sc-s sc-tb-r" nowrap="true"> 110</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="6">Women</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">&lt;2-yr completers (II,11)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">2&lt;4-yr completers (II,12)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Bachelor's completers (II,18)</td><td class="sc-tb-r"> 79</td><td class="sc-tb-r"> 92</td><td class="sc-tb-r"> 66</td><td class="sc-s sc-tb-r" nowrap="true"> 72</td><td class="sc-s sc-tb-r" nowrap="true"> 309</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">&lt;2-yr completers (III,11)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">2&lt;4-yr completers (III,12)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Bachelor's completers (III,18)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total <a href="javascript:openglossary(131)">completers within 150%</a></td><td class="sc-tb-r"> 79</td><td class="sc-tb-r"> 92</td><td class="sc-tb-r"> 66</td><td class="sc-s sc-tb-r" nowrap="true"> 72</td><td class="sc-s sc-tb-r" nowrap="true"> 309</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="6">Total (men and women)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">&lt;2-yr completers (II,11)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">2&lt;4-yr completers (II,12)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Bachelor's completers (II,18)</td><td class="sc-tb-r"> 109</td><td class="sc-tb-r"> 113</td><td class="sc-tb-r"> 101</td><td class="sc-s sc-tb-r" nowrap="true"> 96</td><td class="sc-s sc-tb-r" nowrap="true"> 419</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">&lt;2-yr completers (III,11)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">2&lt;4-yr completers (III,12)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Bachelor's completers (III,18)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total <a href="javascript:openglossary(131)">completers within 150%</a></td><td class="sc-tb-r"> 109</td><td class="sc-tb-r"> 113</td><td class="sc-tb-r"> 101</td><td class="sc-s sc-tb-r" nowrap="true"> 96</td><td class="sc-s sc-tb-r" nowrap="true"> 419</td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Graduation rates</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="6">Calculation of 4-year average rates:  <a href="javascript:openglossary(657)">Transfer-out students</a> and rate calculations</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 3 of 3</td><td class="sc-tb-c">2002</td><td class="sc-tb-c">2003</td><td class="sc-tb-c">2004</td><td class="sc-tb-c">2005</td><td class="sc-tb-c">4-year Total</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="6">Men</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Transfer-out students (II,30)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Transfer-out students (III,30)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total transfer-out students</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="6">Women</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Transfer-out students (II,30)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Transfer-out students (III,30)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total transfer-out students</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="6">Total (men and women)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Transfer-out students (II,30)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Transfer-out students (III,30)</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total transfer-out students</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-tb-r"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="6"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5">4-year average Student-Right-to-Know completion or graduation rate calculation</td><td class="sc-s sc-tb-r" nowrap="true"> 53</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="6">   (Total Completers within 150% / Adjusted Cohort)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5">4-year average Student-Right-to-Know transfer-out rate calculation</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6">   (Total Transfer-out Students / Adjusted Cohort)</td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div>
+<table border="0" cellpadding="4px" cellspacing="0" class="shade" width="650"><tbody><tr><td align="left" width="500">Institution: Fisk University (220181) </td><td align="right">User ID: super1</td></tr></tbody></table>
+</div><div style="padding:4px;width:650px;border:none;font-weight:bold">Summary</div>
+<div>
+<style type="text/css">
+    table.grid
+    {
+        border-collapse: collapse;
+        font-size: 9px;
+    }
+    table.grid td
+    {
+        border: 1px solid #c7ddea;
+        font-size: 10px;
+        padding: 4px;
+        vertical-align: top;
+    }
+    table.grid tr.alt td
+    {
+        background-color: #F3F5F7;
+    }
+    table.grid th
+    {
+        background-color: #D2DFE5;
+        border: 1px solid #c7ddea;
+        padding: 4px;
+        text-align:center;
+    }
+    td.number
+    {
+        text-align: right;
+    }
+    td.number span
+    {
+        margin-right: 10px;
+    }
+    td.numberWide
+    {
+        text-align: right;
+    }
+    td.numberWide span
+    {
+        margin-right: 320px;
+    }
+</style>
+<div style="width:650px">
+<div style="padding-top:20px; text-align:center; font-family:Verdana; font-size:14px; font-weight:bold; color:#336699;">
+        2011 IPEDS Graduation Rate Component Data Summary
+    </div>
+<p id="header1">
+        IPEDS collects important information regarding your institution.  All data reported in IPEDS survey
+        components become available in the IPEDS Data Center and appear as aggregated data in various Department
+        of Education reports. Additionally, some of the reported data appears specifically for your institution
+        through the College Navigator website and is included in your institution’s Data Feedback Report (DFR).
+        The purpose of this summary is to provide you an opportunity to view some of the data that, when accepted
+        through the IPEDS quality control process, will appear on the College Navigator website and/or your DFR.
+        College Navigator is updated approximately three months after the data collection period closes and Data
+        Feedback Reports will be available through the ExPT and sent to your institution’s CEO in November 2012. 
+    </p>
+<p id="header2">
+        Please review your data for accuracy.  If you have questions about the data displayed below after reviewing
+        the data reported on the survey screens, please contact the IPEDS Help Desk at: 1-877-225-2568 or
+        <a href="mailto:ipedshelp@rti.org">ipedshelp@rti.org</a>.
+    </p>
+<div id="pnl4Year">
+<table class="grid" id="tbl4yearGeneral" style="width:60%">
+<tbody><tr class="alt" id="Tr23">
+<td class="" colspan="2" style="vertical-align:middle;text-align:center; font-weight:bold;">Overall Graduation Rate</td>
+</tr>
+<tr id="Tr11">
+<td class="" style="width: 70%;">Graduation Rate</td>
+<td class="" style="width: 30%; text-align:right; vertical-align:middle;"><span id="lbl4completorRate">45%</span></td>
+</tr>
+<tr class="alt" id="Tr25">
+<td class="" style="width: 70%;">Total number of students in the Adjusted Cohort</td>
+<td class="" style="width: 30%; text-align:right; vertical-align:middle;"><span id="lbl4adj">212</span></td>
+</tr>
+<tr id="Tr30">
+<td class="" style="width: 70%;">Total number of completers within 150% of normal time</td>
+<td class="" style="width: 30%; text-align:right; vertical-align:middle;"><span id="lbl4completor">96</span></td>
+</tr>
+</tbody></table>
+<br/>
+<br/>
+<table class="grid" id="tbl4yearBachelor" style="width:60%">
+<tbody><tr class="alt" id="Tr8">
+<td class="" colspan="2" style="vertical-align:middle;text-align:center; font-weight:bold;">Graduation Rate for students pursuing Bachelor’s Degrees</td>
+</tr>
+<tr id="Tr13">
+<td class="" style="width: 70%; ">Graduation Rate for Bachelor’s Cohort</td>
+<td class="" style="width: 30%; text-align:right; vertical-align:middle;"><span id="lbl4completorBachelorRate6">45%</span></td>
+</tr>
+<tr id="Tr9">
+<td class="" style="width: 70%; ">Total number of students in the Adjusted Cohort</td>
+<td class="" style="width: 30%; text-align:right; vertical-align:middle;"><span id="lbl4adjBachelor">212</span></td>
+</tr>
+<tr id="Tr34">
+<td class="" style="width: 70%; ">Total number of bachelor’s degree completers within 150% of normal time</td>
+<td class="" style="width: 30%; text-align:right; vertical-align:middle;"><span id="lbl4completorBachelor6">96</span></td>
+</tr>
+</tbody></table>
+<br/>
+</div>
+<table calss="grid" style="width:100%">
+<tbody><tr class="">
+<td> </td>
+</tr>
+<tr class="">
+<td> </td>
+</tr>
+</tbody></table>
+<table calss="grid" style="width:100%">
+<tbody><tr class="">
+<td> </td>
+</tr>
+<tr class="">
+<td> </td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+<tr>
+<td> </td>
+</tr>
+</tbody></table>
+</div>
+<div style="text-align:left">
+                    
+        		                  
+                    
+        </div></div>
+</div>
+</form>
+<div class="top"><a href="#top">Back to top</a></div>
+</body></html>

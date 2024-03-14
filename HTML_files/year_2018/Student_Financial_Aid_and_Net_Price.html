@@ -1,0 +1,1557 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>
+	Reported Data
+</title>
+<style>
+        .page-header {
+            font-size: 16px;
+        }
+
+        @media print
+        {    
+            .page-header {
+                display: none;
+            }
+
+            .page-header-wrapper {
+                display: none;
+            }
+        }
+
+        select {
+            padding: 4px 4px;
+            font-size: 15px;
+            border-radius: 6px;
+        }
+
+        .mr-2 {
+            margin-right: 0.5em;
+        }
+
+        .mr-4 {
+            margin-right: 1em;
+        }
+
+        .mr-8 {
+            margin-right: 2em;
+        }
+
+        .btn {
+            border: 1px solid #999;
+            padding: 1px 10px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .loading-data {
+            margin: 20px auto 0 auto;
+            width: 150px;
+            text-align: center;
+        }
+
+        #top {
+            position: relative;
+            top: -100px;
+        }
+
+        .top {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            padding: 5px 5px;
+            background-color: #eee;
+            text-align: center;
+        }
+
+        .top a:link,
+        .top a:visited,
+        .top a:hover {
+            text-decoration: none;
+            color: #333;
+        }
+
+        .no-survey-found {
+            background-color: #f7f7f7;
+            padding: 20px 20px;
+            font-size: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .no-survey-found.show {
+            display: block;
+        }
+
+        #survey_content {
+            border:0px solid red;
+            margin-top: 20px;
+            padding-top: 10px;
+        }
+        .note-message {
+            padding: 8px 12px;
+            background-color: #fcfbec;
+            border:1px solid #c6c4a5;
+            border-radius:4px;
+            display:none;
+            font-size:13px;
+        }
+        .note-message.show {
+            display: block;
+        }
+    </style>
+<script src="scripts/jquery-3.6.0.js" type="text/javascript"></script>
+<script>
+        let year = 2018;
+        let prevYear = 2018;
+        let unitId = 220181;
+        let surveyNumber = 7;
+
+        function removeFacsimileStyleFiles() {
+            $('[data-year="2020"]').remove();
+            $('[data-year="2006"]').remove();
+            $('[data-year="2005"]').remove();
+            $('[data-year="20002004"]').remove();
+        }
+
+        function addFacsimileStyleFile() {
+            // update year
+            if (year >= 2020) {
+                addCssFile('facsimile/assets/css/styles.css', '2020');
+            } else if (year >= 2000 && year <= 2004) {
+                addCssFile('styles/fm_style00_04.css', '20002004');
+                addCssFile('styles/fm_style00_04_fixes.css', '20002004');
+            } else if (year === 2005) {
+                addCssFile('styles/fm_style05.css', '2005');
+            }
+            else if (year > 2005) {
+                addCssFile('styles/facsimile.css', '2006');
+            }
+        }
+
+        function addCssFile(fileName, dataYearAttr) {
+            var cssRef = document.createElement("link");
+            cssRef.setAttribute("rel", "stylesheet");
+            cssRef.setAttribute("type", "text/css");
+            cssRef.setAttribute("href", fileName);
+            cssRef.setAttribute('data-year', dataYearAttr);
+            document.getElementsByTagName("head")[0].appendChild(cssRef)
+        }
+
+        function loadContent() {
+            $('#survey_content').html('<div class="loading-data"><h2>Loading data...</h2></div>');
+            $('.no-survey-found').removeClass('show');
+            $('#data-revised-note').removeClass('show');
+            $('#data-not-revised-note').removeClass('show');
+           
+            $.ajax({
+                url: 'FacsimileView.aspx?action=data&year=' + year + '&prevYear=' + prevYear + '&unitId=' + unitId + '&surveyNumber=' + surveyNumber,
+                type: "GET",
+                cache: false,
+                success: function (data) {
+                    prevYear = year;
+                    var json = JSON.parse(data);
+                    $('#survey_content').html(json.SurveyHtml);
+
+                    //***************
+                    $('#data-not-revised-note').removeClass('show');
+                    $('#latest-year-data-not-revised-note').removeClass('show');
+                    $('#pre-2014-data-not-revised-note').removeClass('show');
+                    $('#data-revised-note').removeClass('show');
+
+                    // Message about revised data:
+                    if (year >= 2022 ) {
+                        $('#latest-year-data-not-revised-note').addClass('show');
+                    }
+                    else if (year >= 2014 && year<=2021) {
+
+                        if (json.DataRevised === true)
+                            $('#data-revised-note').addClass('show');
+                        else //if (json.DataRevised === false)
+                            $('#data-not-revised-note').addClass('show');
+                    }
+                    else
+                        $('#pre-2014-data-not-revised-note').addClass('show');
+
+
+                    const container = document.getElementById('survey_content');
+
+                    // Get all buttons within the container
+                    const buttons = container.querySelectorAll('button');
+
+                    // Loop through each button and disable it
+                    buttons.forEach(button => {
+                        button.disabled = true;
+                    });
+
+
+                    if (json.Surveys) {
+                        // we need to create new values in Survey dropdown
+                        let dropdown = $('#select-surveys')[0];
+                        // first remove all elements
+                        while (dropdown.options.length > 0)
+                            dropdown.remove(0);
+
+                        let surveyNumbers = Object.keys(json.Surveys);
+                        let surveyNumberExistsInDifferentYear = false;
+                        for (let i = 0; i < surveyNumbers.length; i++) {
+                            let opt = document.createElement('option');
+                            opt.value = surveyNumbers[i];
+                            if (surveyNumbers[i] == surveyNumber) {
+                                surveyNumberExistsInDifferentYear = true;
+                                opt.selected = true;
+                            }
+                            opt.innerHTML = json.Surveys[surveyNumbers[i]];
+                            dropdown.appendChild(opt);
+                        }
+                        // if survey does not exists, add empty <option>
+                        if (surveyNumberExistsInDifferentYear == false) {
+                            let opt = document.createElement('option');
+                            opt.value = '';
+                            opt.innerHTML = 'Select a survey';
+                            opt.selected = true;
+                            dropdown.add(opt, dropdown.options[0]);
+                            $('.no-survey-found').addClass('show');
+                            $('#data-not-revised-note').removeClass('show');
+                        }                       
+                            
+                    }
+
+                    // Update url to reflect selected year/survey
+                    //let newUrl = new URL(window.location.href);
+                    //let params = new URLSearchParams(newUrl.search);
+                    
+                   
+                    //params.set('year', year);
+                    //params.set('surveyNumber', surveyNumber)
+
+
+                    let searchParams = new URLSearchParams(window.location.search);
+
+                    searchParams.delete("surveynumber");
+                    searchParams.delete("year");
+                    searchParams.set('year', year);
+                    searchParams.set('surveyNumber', surveyNumber)
+
+                    if (window.history.replaceState) {
+                        const url = window.location.protocol
+                            + "//" + window.location.host
+                            + window.location.pathname
+                            + "?"
+                            + searchParams.toString();
+
+                        window.history.replaceState({
+                            path: url
+                        }, "", url)
+                    }
+
+
+                },
+                error: function (xhr, err) {
+                    console.log("Status: " + xhr.status + "\nResponse Text:" + xhr.responseText);
+                }
+            });
+        }
+
+        function selectSurvey(ev) {
+            surveyNumber = ev.target.value;
+            loadContent();
+        }
+
+        function selectYear(ev) {
+            year = +ev.target.value;
+            loadContent();
+
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+        }
+
+        function updateURLParameter(url, param, paramVal) {
+            let TheAnchor = null;
+            let newAdditionalURL = "";
+            let tempArray = url.split("?");
+            let baseURL = tempArray[0];
+            let additionalURL = tempArray[1];
+            let temp = "";
+
+            if (additionalURL) {
+                var tmpAnchor = additionalURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+                if (TheAnchor)
+                    additionalURL = TheParams;
+
+                tempArray = additionalURL.split("&");
+
+                for (var i = 0; i < tempArray.length; i++) {
+                    if (tempArray[i].split('=')[0] != param) {
+                        newAdditionalURL += temp + tempArray[i];
+                        temp = "&";
+                    }
+                }
+            }
+            else {
+                var tmpAnchor = baseURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+
+                if (TheParams)
+                    baseURL = TheParams;
+            }
+
+            if (TheAnchor)
+                paramVal += "#" + TheAnchor;
+
+            var rows_txt = temp + "" + param + "=" + paramVal;
+            return baseURL + "?" + newAdditionalURL + rows_txt;
+        }
+
+        
+
+        $(document).ready(function () {
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+            loadContent();
+        });
+
+        function printPage() {
+            window.print();
+        }
+    </script>
+<link data-year="2006" href="styles/facsimile.css" rel="stylesheet" type="text/css"/></head>
+<body>
+<div class="page-header-wrapper" style="background-color: #eee; padding: 18px 6px;">
+<div class="page-header" style="width: 90%; margin: 0 auto;">
+<div style="display: flex; align-items: center!important;">
+<div class="mr-4">Reported Data: Fisk University </div>
+<div class="mr-4">|</div>
+<div class="mr-2">Select year:</div>
+<div class="mr-4">
+<select onchange="selectYear(event)">
+<option value="2022">2022</option>
+<option value="2021">2021</option>
+<option value="2020">2020</option>
+<option value="2019">2019</option>
+<option selected="" value="2018">2018</option>
+<option value="2017">2017</option>
+<option value="2016">2016</option>
+<option value="2015">2015</option>
+<option value="2014">2014</option>
+<option value="2013">2013</option>
+<option value="2012">2012</option>
+<option value="2011">2011</option>
+<option value="2010">2010</option>
+<option value="2009">2009</option>
+<option value="2008">2008</option>
+<option value="2007">2007</option>
+<option value="2006">2006</option>
+<option value="2005">2005</option>
+<option value="2004">2004</option>
+<option value="2003">2003</option>
+<option value="2002">2002</option>
+<option value="2001">2001</option>
+</select>
+</div>
+<div class="mr-2">Select survey:</div>
+<div class="mr-2">
+<select id="select-surveys" onchange="selectSurvey(event)">
+<option value="1">Institutional Characteristics</option>
+<option value="12">Admissions and Test Scores</option>
+<option value="15">Fall Enrollment</option>
+<option value="14">12-Month Enrollment</option>
+<option value="3">Completions</option>
+<option value="8">Graduation Rates</option>
+<option value="22">GR200</option>
+<option value="18">Outcome Measures</option>
+<option selected="" value="7">Student Financial Aid and Net Price</option>
+<option value="6">Finance</option>
+<option value="9">Human Resources</option>
+<option value="16">Academic Libraries</option>
+</select>
+</div>
+<div style="flex: 1 1 auto!important;"> </div>
+<div>
+<button class="mr-4 btn">
+<img onclick="printPage()" src="images/printer-svgrepo-com.svg" style="width: 15px"/>
+</button>
+<a href="Facsimile.aspx?unitId=220181">
+<img src="images/icon_close.svg" style="width: 25px"/>
+</a>
+</div>
+</div>
+</div>
+</div>
+<a id="top"></a>
+<form action="./facsimileView.aspx?unitid=220181&amp;surveynumber=7&amp;year=2018&amp;goToReportId=6" id="form1" method="post" name="form1">
+<div>
+<input id="__VIEWSTATE" name="__VIEWSTATE" type="hidden" value="/wEPDwUJNDk4MDAyNjQ0ZGQ1Rt5I0VdqjyBZxpj37FRHeGkbkoRpCmohM64NK8Nn3w=="/>
+</div>
+<div>
+<input id="__VIEWSTATEGENERATOR" name="__VIEWSTATEGENERATOR" type="hidden" value="3C3AC055"/>
+</div>
+<div style="width: 1000px; margin: 0 auto;">
+<div class="note-message show" id="data-not-revised-note">Note: Institution did NOT submit revisions through the Prior Year Data Revision System for selected collection year and survey.</div>
+<div class="note-message" id="data-revised-note">Note: Reported data includes revisions made through the Prior Year Data Revision System for  selected collection year and survey.</div>
+<div class="note-message" id="pre-2014-data-not-revised-note">Note: Reported data do not include revisions made through the Prior Year Data Revision System for any institution prior to collection year 2014.</div>
+<div class="note-message" id="latest-year-data-not-revised-note">Note: Revisions made through the Prior Year Data Revision System are not available for the selected collection year.</div>
+<div class="no-survey-found">
+                Please select survey from dropdown above
+            </div>
+<div id="survey_content"><div class="facsimile_assets"><table border="0" cellpadding="0" cellspacing="0" id="Table3" width="650">
+<tbody><tr>
+<td align="left">
+<table border="0" cellpadding="0" cellspacing="0" id="tblHeader" width="650">
+<tbody><tr>
+<td colspan="2" style="line-height:20px; height:20px; vertical-align:middle;">
+<div align="center" class="pagetitle" style="height:100%; padding-top:10px;">
+<span id="lblSurveyName">Student Financial Aid 2017-18</span>
+</div>
+<br/>
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div>
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Section 1: Part A</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="5">Part A - Establish Your Groups</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5">Part A establishes the number of students in various groups. Note that the numbers on this screen will be carried forward to other parts of the Student Financial Aid component.<br/><br/><b>In the fields below, report the number of students in each of the following groups.</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3" rowspan="2"> </td><td class="sc-tb-c" rowspan="2"><img id="screenTip_1" src="images/icon_tip.gif" style="border:none; vertical-align:top;"/> <b>Fall 2017</b></td><td class="sc-tb-c"><b>YOUR PRIOR YEAR DATA</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><b>Fall 2016</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">01</td><td class="sc-tb-l" colspan="2"><b>Group 1</b><br/>All <a href="javascript:openglossary(677)">undergraduate</a> students</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f7878" name="tb_f7878" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">704</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 735</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">02</td><td class="sc-tb-l" colspan="2"><b>Group 2</b>
+<br/>
+Of those in Group 1, those who are <a href="javascript:openglossary(259)">full-time</a>, <a href="javascript:openglossary(241)">first-time</a> degree/certificate-seeking</td><td class="sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2b3b1b3a1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb19bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 <span class="sc-tbn" id="tb_f7868" name="tb_f7868" size="15" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">143</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 123</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">02a</td><td class="sc-tb-l">Of those in Group 2, those who were awarded any <a href="javascript:openglossary(121)">Federal Work Study</a>, <a href="javascript:openglossary(367)">loans to students</a>, or grant or scholarship aid from the federal government, state/local government, the institution, or other sources known to the institution</td><td class="sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2b3b2b4a1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb19bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 <span class="sc-tbn" id="tb_f7879" name="tb_f7879" size="15" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">133</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 110</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">02b</td><td class="sc-tb-l">Of those in Group 2, those who were awarded any <a href="javascript:openglossary(367)">loans to students</a> or grant or scholarship aid from the federal government, state/local government, or the institution</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700165" name="tb_f700165" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">133</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 110</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">03</td><td class="sc-tb-l" colspan="2"><b>Group 3</b><br/> Of those in Group 2, those  who were awarded grant or scholarship aid from the federal government, state/local government, or the institution</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700005" name="tb_f700005" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">133</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 110</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">04</td><td class="sc-tb-l" colspan="2"><b>Group 4</b><br/> Of those in Group 2, those  who were awarded  any <a href="javascript:openglossary(969)">Title IV federal student aid</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700010" name="tb_f700010" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">133</span></td><td class="sc-dbcalc-f-py sc-tb-r"> 100</td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div>
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Section 1: Part B</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="7">Part B - Enter Information About Group 1<br/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="7">Group 1 students are ALL <a href="javascript:openglossary(677)">undergraduate students</a> (including <a href="javascript:openglossary(241)">first-time </a> students) enrolled in Fall 2017.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="7">For this part, report:</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="2"><b>For These Students</b></td><td class="sc-tb-c" colspan="3"><b>The Following Type(s) of Aid</b></td><td class="sc-tb-c" colspan="2"><b>Awarded in This Period</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><ul><li>All undergraduate students enrolled in Fall 2017</li></ul></td><td class="sc-tb-l" colspan="3"><ul><li>Grant or scholarship aid from:
+<ul><li>federal government</li>
+<li>state/local government</li>
+<li>the institution</li>
+<li>other sources known to the institution</li></ul><br/>
+</li><li>Loans to students from:</li>
+<ul><li>the federal government</li></ul></ul></td><td class="sc-tb-l" colspan="2"><ul><li>Any time during academic year 2017-18</li></ul></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="7"><b>In the fields below, report the number of Group 1 students and the total amount of aid awarded to these students for each type of aid.</b><br/> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l" colspan="6"><b>Information from Part A:</b></td><td class="sc-s sc-tb-c"><b>Fall 2017</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l" colspan="6"><b>Group 1</b><br/>
+All undergraduate students<br/>
+(This number is carried forward from Part A, Line 01.)</td><td class="sc-s sc-tb-r"> 704</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="7"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="3" rowspan="2"><b>Aid Type</b></td><td class="sc-tb-c" colspan="4"><b>2017-18</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"><b>Number of Group 1 students who were awarded aid</b></td><td class="sc-tb-c"><b>Percentage of Group 1 students who were awarded aid</b></td><td class="sc-tb-c"><b>Total amount of aid awarded to Group 1 students</b></td><td class="sc-tb-c"><b>Average amount of aid awarded to Group 1 students</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">01</td><td class="sc-tb-l" colspan="2">Grant or scholarship aid from the federal government, state/local government, the institution, and other sources known to the institution <b>(Do NOT include federal student loans)</b></td><td class="sc-tb-l" nowrap="true"> <span class="sc-tbn" id="tb_f700053" name="tb_f700053" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">625</span></td><td class="sc-s sc-tb-l" nowrap="true"> 89</td><td class="sc-tb-l" nowrap="true"> <span class="sc-tbn" id="tb_f700021" name="tb_f700021" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">11,500,542</span></td><td class="sc-s sc-tb-l" nowrap="true"> 18,401</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"> </td><td class="sc-tb-l" colspan="2">02 <a href="javascript:openglossary(473)"> Pell Grants</a></td><td class="sc-tb-l" nowrap="true"> <span class="sc-tbn" id="tb_f700022" name="tb_f700022" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">376</span></td><td class="sc-s sc-tb-l" nowrap="true"> 53</td><td class="sc-tb-l" nowrap="true"> <span class="sc-tbn" id="tb_f700058" name="tb_f700058" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,812,061</span></td><td class="sc-s sc-tb-l" nowrap="true"> 4,819</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">03</td><td class="sc-tb-l" colspan="2">Federal student loans</td><td class="sc-tb-l" nowrap="true"> <span class="sc-tbn" id="tb_f700061" name="tb_f700061" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">640</span></td><td class="sc-s sc-tb-l" nowrap="true"> 91</td><td class="sc-tb-l" nowrap="true"> <span class="sc-tbn" id="tb_f700063" name="tb_f700063" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">6,654,633</span></td><td class="sc-s sc-tb-l" nowrap="true"> 10,398</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="7"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="7"><img alt="These context notes may be posted on the College Navigator website." src="images/icon_navigator.gif" style="border:none"/> The notes below provide context for the data you've reported above and <b>may</b> be posted on the College Navigator website. Choose one option that best explains your data or choose "Non-applicable" if you do not wish to provide context notes. If none of the options provided explain your institution’s data, then choose "Other" and write your own context notes. Notes should be written so that they can be understood by students and parents. For example, institutions may report here other sources of private aid not included in the categories listed.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="7" nowrap="true"> Non-applicable</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="7" nowrap="true"> <textarea cols="54" id="cvt_f700038" name="cvt_f700038" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div>
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Section 1: Part C, Page 2</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="9">Part C - Enter Information about Group 2</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="9">Group 2 students are all full-time, first-time degree/certificate-seeking undergraduate students enrolled in Fall 2017.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="9">For this part, report:<br/> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="4"><b>For These Students</b></td><td class="sc-tb-c" colspan="3"><b>The Following Type(s) of Aid</b></td><td class="sc-tb-c" colspan="2"><b>Awarded in This Period</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="4"><ul><li>Full-time, first-time degree/certificate-seeking undergraduate students enrolled in Fall 2017</li></ul></td><td class="sc-tb-l" colspan="3"><ul><li>Grant or scholarship aid from:
+<ul><li>federal government</li>
+<li>state/local government</li>
+<li>the institution</li></ul>
+</li><li>Loans to students from: 
+<ul><li>the federal government</li>
+<li>other sources, including private or other loans</li></ul>
+</li><li>Do <b>not</b> include:
+<ul><li>grant or scholarship aid from private or other sources</li>
+<li>PLUS loans or loans made to anyone other than the student</li></ul></li></ul></td><td class="sc-tb-l" colspan="2"><ul><li>Any time during academic year 2017-18</li>
+<li>For program reporters, this is the aid year period from July 1, 2017 through June 30, 2018.</li></ul></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="9"><b>In the fields below, report the number of Group 2 students and the total amount of aid awarded to these students for each type of aid. Enter unduplicated student counts within a category (e.g., Pell Grants). However, a student can appear in more than one aid category.</b><br/> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l" colspan="8"><b>Information from Part A:</b></td><td class="sc-s sc-tb-c"><b>Fall 2017</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l" colspan="8"><b>Group 2</b> (This number is carried forward from Part A, Line 02) <br/><br/>Full-time, first-time degree/certificate-seeking undergraduates</td><td class="sc-s sc-tb-r" nowrap="true"> 143</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="8"><b>Group 2a</b> (This number is carried forward from Part A, Line 02a)
+<dl>
+<dt>Of those in Group 2, those who were awarded:
+</dt><dd>-Federal Work Study 
+</dd><dd>-loans to students
+</dd><dd>-grant or scholarship aid from the federal government, state/local government, or the institution
+</dd><dd>-grant or scholarship aid from other sources known to the institution
+</dd></dl></td><td class="sc-tb-r"> 133</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="8"><b>Group 2b</b> (This number is carried forward from Part A, Line 02b)
+<dl>
+<dt>Of those in Group 2, those who were awarded: 
+</dt><dd>-loans to students
+</dd><dd>-grant or scholarship aid from the federal government, state/local government, or the institution</dd></dl></td><td class="sc-tb-r"> 133</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="8"><b>Group 3</b> (This number is carried forward from Part A, Line 03)
+<dl>
+<dt>Of those in Group 2, those who were awarded: 
+</dt><dd>-grant or scholarship aid from the federal government, state/local government, or the institution
+</dd></dl></td><td class="sc-tb-r"> 133</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="4" rowspan="3"><b>Aid Type</b></td><td class="sc-tb-c" colspan="4" rowspan="1"> </td><td class="sc-tb-c"><b>YOUR PRIOR YEAR DATA</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="4"><b>Fall 2017</b></td><td class="sc-tb-c" rowspan="1"><b>Fall 2016</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><b>Number of Group 2 students who were awarded aid</b></td><td class="sc-tb-c"><b>Percentage of Group 2 students who were awarded aid</b></td><td class="sc-tb-c"><b>Total amount of aid awarded to Group 2 students</b></td><td class="sc-tb-c"><b>Average amount of aid awarded to Group 2 students</b></td><td class="sc-tb-c"><b>Average amount of aid awarded to Group 2 students</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">01</td><td class="sc-tb-l" colspan="3">Grants or scholarships from the federal government, state/local government, or the institution</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700023" name="tb_f700023" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">133</span></td><td class="sc-s sc-tb-r" nowrap="true"> 93</td><td class="sc-s sc-tb-l" nowrap="true"> 1,569,614</td><td class="sc-s sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababafafa1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 11,802</td><td class="sc-dbcalc-f-py sc-tb-r"> 9,396</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">02</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(611)">Federal grants</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f7881" name="tb_f7881" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">112</span></td><td class="sc-s sc-tb-r" nowrap="true"> 78</td><td class="sc-s sc-tb-l" nowrap="true"> 303,531</td><td class="sc-s sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababafada1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 2,710</td><td class="sc-dbcalc-f-py sc-tb-r"> 4,592</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l"> </td><td class="sc-tb-c">02a</td><td class="sc-tb-l"><a href="javascript:openglossary(473)">Pell Grants</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700026" name="tb_f700026" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">112</span></td><td class="sc-s sc-tb-r" nowrap="true"> 78</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f7883" name="tb_f7883" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">297,674</span></td><td class="sc-s sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababafaba1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 2,658</td><td class="sc-dbcalc-f-py sc-tb-r"> 4,831</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l"> </td><td class="sc-tb-c">02b</td><td class="sc-tb-l"><a href="javascript:openglossary(759)">Other federal grants</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700029" name="tb_f700029" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">30</span></td><td class="sc-s sc-tb-r" nowrap="true"> 21</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700025" name="tb_f700025" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5,857</span></td><td class="sc-s sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababafaca1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 195</td><td class="sc-dbcalc-f-py sc-tb-r"> 3,002</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">03</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(619)">State/local government grants</a> or <a href="javascript:openglossary(575)">scholarships</a><br/>
+(includes <a href="javascript:openglossary(229)">fellowships</a>/tuition waivers/exemptions)<br/></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f7884" name="tb_f7884" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">40</span></td><td class="sc-s sc-tb-r" nowrap="true"> 28</td><td class="sc-tb-l" nowrap="true"> <span class="sc-tbn" id="tb_f7886" name="tb_f7886" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">122,162</span></td><td class="sc-s sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababafaea1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 3,054</td><td class="sc-dbcalc-f-py sc-tb-r"> 5,490</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">04</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(317)">Institutional grants</a> or <a href="javascript:openglossary(575)">scholarships</a><br/>
+(includes <a href="javascript:openglossary(229)">fellowships</a>/tuition waivers/exemptions)<br/></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f7887" name="tb_f7887" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">133</span></td><td class="sc-s sc-tb-r" nowrap="true"> 93</td><td class="sc-tb-l" nowrap="true"> <span class="sc-tbn" id="tb_f7889" name="tb_f7889" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,143,921</span></td><td class="sc-s sc-tb-r" nowrap="true"> 8,601</td><td class="sc-dbcalc-f-py sc-tb-r"> 9,670</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">05</td><td class="sc-tb-l" colspan="3"><a href="javascript:openglossary(367)">Loans to students</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f7890" name="tb_f7890" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">133</span></td><td class="sc-s sc-tb-r" nowrap="true"> 93</td><td class="sc-s sc-tb-l" nowrap="true"> 1,184,955</td><td class="sc-s sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababafb2a1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 8,909</td><td class="sc-dbcalc-f-py sc-tb-r"> 7,226</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l"> </td><td class="sc-tb-c">05a</td><td class="sc-tb-l">Federal loans</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700032" name="tb_f700032" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">133</span></td><td class="sc-s sc-tb-r" nowrap="true"> 93</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f7892" name="tb_f7892" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,147,455</span></td><td class="sc-s sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababafb0a1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 8,627</td><td class="sc-dbcalc-f-py sc-tb-r"> 6,620</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l"> </td><td class="sc-tb-c">05b</td><td class="sc-tb-l">Other loans (including private loans)</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700035" name="tb_f700035" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4</span></td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700034" name="tb_f700034" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">37,500</span></td><td class="sc-s sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababafb1a1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 9,375</td><td class="sc-dbcalc-f-py sc-tb-r"> 18,581</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="9"><img alt="These context notes may be posted on the College Navigator website." src="images/icon_navigator.gif" style="border:none"/> The notes below provide context for the data you've reported above and <b>may</b> be posted on the College Navigator website. Choose one option that best explains your data or choose "Non-applicable" if you do not wish to provide context notes. If none of the options provided explain your institution’s data, then choose "Other" and write your own context notes. Notes should be written to be understood by students and parents. For example, institutions may report here other sources of private aid not included in the categories listed.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="9" nowrap="true"> Non-applicable</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="9" nowrap="true"> <textarea cols="54" id="cvt_f9081" name="cvt_f9081" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div>
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Section 1: Comparison Chart</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="6">Comparison Chart</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6">Based on the information reported on the previous screens for Group 1 (all undergraduates) and Group 2 (full-time, first-time degree/certificate-seeking undergraduates), this comparison chart seeks to help institutions check their reported data. Assuming that the information on Groups 1 and 2 is correct, then the calculated fields for ‘All Other Undergraduates’ should be the balance (Group 1 minus Group 2). If the balance does not check with your institution’s calculations, please correct your reported numbers for Groups 1 and 2 before moving forward with the completion of the SFA survey component.
+<br/><br/>
+<b>Note:</b> Data for the 'All Other Undergraduates' will appear in the IPEDS Data Center for data users, but not in College Navigator.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c" colspan="2"> </td><td class="sc-tb-c"><b>Number of students</b></td><td class="sc-tb-c"><b>     Pell grants     </b></td><td class="sc-tb-c"><b>Federal Student Loans</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">01</td><td class="sc-tb-l" colspan="2"><b>Group 1 (all undergraduates)</b></td><td class="sc-s sc-tb-r"> 704</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">02</td><td class="sc-tb-l"> </td><td class="sc-tb-l">Number of students who were awarded aid</td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r"> 376</td><td class="sc-s sc-tb-r"> 640</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">03</td><td class="sc-tb-l"> </td><td class="sc-tb-l">Percentage who were awarded aid</td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r"> 53</td><td class="sc-s sc-tb-r"> 91</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">04</td><td class="sc-tb-l"> </td><td class="sc-tb-l">Total amount of aid awarded</td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r"> 1,812,061</td><td class="sc-s sc-tb-r"> 6,654,633</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">05</td><td class="sc-tb-l"> </td><td class="sc-tb-l">Average amount of aid awarded</td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r"> 4,819</td><td class="sc-s sc-tb-r"> 10,398</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">06</td><td class="sc-tb-l" colspan="2"><b>Group 2 (Full-time, first-time undergraduates)</b></td><td class="sc-s sc-tb-r"> 143</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">07</td><td class="sc-tb-l"> </td><td class="sc-tb-l">Number of students who were awarded aid</td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r"> 112</td><td class="sc-s sc-tb-r"> 133</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">08</td><td class="sc-tb-l"> </td><td class="sc-tb-l">Percentage who were awarded aid</td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r"> 78</td><td class="sc-s sc-tb-r"> 93</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">09</td><td class="sc-tb-l"> </td><td class="sc-tb-l">Total amount of aid awarded</td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r"> 297,674</td><td class="sc-s sc-tb-r"> 1,147,455</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">10</td><td class="sc-tb-l"> </td><td class="sc-tb-l">Average amount of aid awarded</td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r"> 2,658</td><td class="sc-s sc-tb-r"> 8,627</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">11</td><td class="sc-tb-l" colspan="2"><b>All other undergraduates <br/>(Line 01 - Line 06)</b></td><td class="sc-s sc-tb-r"> 561</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">12</td><td class="sc-tb-l"> </td><td class="sc-tb-l">Number of students who were awarded aid<br/>(Line 02 - Line 07)</td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 264</td><td class="sc-s sc-tb-r" nowrap="true"> 507</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">13</td><td class="sc-tb-l"> </td><td class="sc-tb-l">Percentage who were awarded aid<br/>(Line 12 / Line 11)</td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 47</td><td class="sc-s sc-tb-r" nowrap="true"> 90</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">14</td><td class="sc-tb-l"> </td><td class="sc-tb-l">Total amount of aid awarded<br/>(Line 04 - Line 09)</td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 1,514,387</td><td class="sc-s sc-tb-r" nowrap="true"> 5,507,178</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">15</td><td class="sc-tb-l"> </td><td class="sc-tb-l">Average amount of aid awarded<br/>(Line 14 / Line 12)</td><td class="sc-tb-r"> </td><td class="sc-s sc-tb-r" nowrap="true"> 5,736</td><td class="sc-s sc-tb-r" nowrap="true"> 10,862</td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div>
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Section 1: Cost of Attendance</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b><font style="color:#cc0000">Data changed on this page cannot be saved and therefore will not be changed in the Prior Year system.</font></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="6">Cost of attendance for full-time, first-time undergraduate students:</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="6"><i>Please enter the amounts requested below. These data will be made available to the public on College Navigator. If your institution participates in any Title IV programs (Pell, Stafford, etc.), you must complete all information. <font color="red">Estimates of expenses for books and supplies, room and board, and other expenses are those from the <b>Cost of Attendance report</b> used by the financial aid office in determining financial need. Please talk to your financial aid office to get these numbers to ensure that you are reporting correctly.</font></i></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6">These numbers are carried forward from Institutional Characteristics and should only be changed if an error was made in the reporting.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3"><b>Charges for full academic year<b></b></b></td><td class="sc-tb-c"><b>2015-16</b></td><td class="sc-tb-c"><b>2016-17</b></td><td class="sc-tb-c"><b>2017-18</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6"><b>Published <a href="javascript:openglossary(848)">tuition</a> and <a href="javascript:openglossary(788)">required fees</a>:</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2">Tuition                                        </td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100027" name="tb_f1100027" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">19,624</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100111" name="tb_f1100111" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">19,624</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100112" name="tb_f1100112" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">19,624</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2">Required fees                                        </td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100030" name="tb_f1100030" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,856</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100031" name="tb_f1100031" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,856</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100032" name="tb_f1100032" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,856</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2">Tuition + fees total</td><td class="sc-s sc-tb-r" nowrap="true"> 21,480</td><td class="sc-s sc-tb-r" nowrap="true"> 21,480</td><td class="sc-s sc-tb-r" nowrap="true"> 21,480</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><img id="screenTip_51" src="images/icon_tip.gif" style="border:none; vertical-align:top;"/> <a href="javascript:openglossary(89)" style="color:Black">Books and supplies</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100054" name="tb_f1100054" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,819</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10957" name="tb_f10957" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,900</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10958" name="tb_f10958" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1,800</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6"><a href="javascript:openglossary(832)" style="color:Black"><b>On-campus:</b></a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(565)">Room</a> and <a href="javascript:openglossary(87)">board</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100055" name="tb_f1100055" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">10,276</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10960" name="tb_f10960" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">10,790</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10961" name="tb_f10961" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">10,790</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(718)" style="color:Black">Other expenses</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100056" name="tb_f1100056" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5,256</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10963" name="tb_f10963" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5,000</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10964" name="tb_f10964" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3,000</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2">Room and board and other expenses</td><td class="sc-s sc-tb-r" nowrap="true"> 15,532</td><td class="sc-s sc-tb-r" nowrap="true"> 15,790</td><td class="sc-s sc-tb-r" nowrap="true"> 13,790</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6"><a href="javascript:openglossary(972)" style="color:Black"><b>Off-campus (not with family):</b></a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(565)">Room</a> and <a href="javascript:openglossary(87)">board</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100057" name="tb_f1100057" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">9,406</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10966" name="tb_f10966" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">10,790</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10967" name="tb_f10967" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">10,790</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(718)" style="color:Black">Other expenses</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100058" name="tb_f1100058" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5,145</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10969" name="tb_f10969" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5,000</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10970" name="tb_f10970" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3,000</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2">Room and board and other expenses</td><td class="sc-s sc-tb-r" nowrap="true"> 14,551</td><td class="sc-s sc-tb-r" nowrap="true"> 15,790</td><td class="sc-s sc-tb-r" nowrap="true"> 13,790</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6"><img id="screenTip_52" src="images/icon_tip.gif" style="border:none; vertical-align:top;"/> <a href="javascript:openglossary(971)" style="color:Black"><b>Off-campus (with family):</b></a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(718)" style="color:Black">Other expenses</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f1100059" name="tb_f1100059" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3,572</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10972" name="tb_f10972" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4,000</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f10973" name="tb_f10973" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3,000</span></td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div>
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Section 1: Part D</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">Part D - Enter Information about Group 3</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6">Group 3 students are all full-time, first-time degree/certificate-seeking undergraduate students enrolled in Fall 2017 who were awarded grant or scholarship aid from the following sources: the federal government, state/local government, or the institution. The information you report in this part will be used in Part F to calculate average institutional net price.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="6">For this part, report:</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="2"><b>For These Students</b></td><td class="sc-tb-c" colspan="2"><b>The Following Type(s) of Aid</b></td><td class="sc-tb-c" colspan="2"><b>Awarded in This Period</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><ul><li>Full-time, first-time degree/certificate-seeking undergraduate students enrolled in Fall 2017 who were awarded grant or scholarship aid from the following sources: the federal government, state/local government, or the institution</li><li>Do <b>not</b> include students who were awarded only grant or scholarship aid from private or other sources, or students who were awarded only non-grant aid</li></ul></td><td class="sc-tb-l" colspan="2"><ul><li>Grant or scholarship aid from:
+<ul><li>federal government</li>
+<li>state/local government</li>
+<li>the institution</li></ul><br/>
+</li><li>Do <b>not</b> include grant or scholarship aid from private or other sources</li></ul></td><td class="sc-tb-l" colspan="2"><ul><li>Any time during academic year 2017-18</li></ul></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6"><b>In the fields below, report the number of Group 3 students with each type of living arrangement and the total amount of grant or scholarship aid from the federal government, state/local government, or the institution awarded to these students.</b><br/> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l" colspan="3"><br/><b>Information from Part A:</b></td><td class="sc-s sc-tb-c"><b>YOUR PRIOR<br/>YEAR DATA</b><br/><b>2015-2016</b></td><td class="sc-s sc-tb-c"><b>YOUR PRIOR<br/>YEAR DATA</b><br/><b>2016-2017</b></td><td class="sc-s sc-tb-c"><b>2017-2018</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l" colspan="3"><b>Group 3</b><br/>Full-time, first-time degree/certificate-seeking undergraduate students who were awarded grant or scholarship aid from the following sources: the federal government, state/local government, or the institution<br/>(This number is carried forward from Part A, Line 03)</td><td class="sc-dbcalc-f-py sc-tb-c"> 194</td><td class="sc-dbcalc-f-py sc-tb-c"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababb2b1a1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 110</td><td class="sc-s sc-tb-c"> 133</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" rowspan="2">01</td><td class="sc-tb-l" colspan="2" rowspan="2"><b>Report the number of Group 3 students with the following living arrangements:</b></td><td class="sc-tb-c"><b>YOUR PRIOR<br/>YEAR DATA<br/></b></td><td class="sc-tb-c"><b>YOUR PRIOR<br/>YEAR DATA<br/></b></td><td class="sc-tb-c"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><b>2015-16</b></td><td class="sc-tb-c"><b>2016-17</b></td><td class="sc-tb-c"><b>2017-18</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">01a</td><td class="sc-tb-l"><a href="javascript:openglossary(832)" style="color:Black">On-campus</a></td><td class="sc-dbcalc-f-py sc-tb-c"> 182</td><td class="sc-dbcalc-f-py sc-tb-c"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababb2b2a1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 105</td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700070" name="tb_f700070" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">133</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">01b</td><td class="sc-tb-l"><a href="javascript:openglossary(971)" style="color:Black">Off-campus (with family)</a></td><td class="sc-dbcalc-f-py sc-tb-c"> 10</td><td class="sc-dbcalc-f-py sc-tb-c"> 5</td><td class="sc-tb-c" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababb2aca1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 <span class="sc-tbn" id="tb_f700071" name="tb_f700071" size="15" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">01c</td><td class="sc-tb-l"><a href="javascript:openglossary(972)" style="color:Black">Off-campus (not with family)</a></td><td class="sc-dbcalc-f-py sc-tb-c"> 2</td><td class="sc-dbcalc-f-py sc-tb-c"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababb2b4a1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 0</td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700072" name="tb_f700072" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">01d</td><td class="sc-tb-l">Unknown (calculated) <br/>This value is calculated using the following formula: [A03-(D01a+D01b+D01c)] </td><td class="sc-s sc-tb-c" nowrap="true"> 0</td><td class="sc-s sc-tb-c" nowrap="true"> 0</td><td class="sc-s sc-tb-c" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">02</td><td class="sc-tb-l" colspan="2"><b>Report the total amount of grant or scholarship aid awarded to Group 3 students from the following sources: the federal government, state/local government, or the institution </b></td><td class="sc-dbcalc-f-py sc-tb-c"> 3,923,435</td><td class="sc-dbcalc-f-py sc-tb-c"> 1,923,415</td><td class="sc-tb-c"> 1,569,614</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">03</td><td class="sc-tb-l" colspan="2">Average grant or scholarship aid from the federal government, state/local government, or the institution awarded to Group 3 students (calculated value).<br/> This value is calculated using the following formula: [D02/A03]</td><td class="sc-s sc-tb-c" nowrap="true"> 20,224</td><td class="sc-s sc-tb-c" nowrap="true"> 17,486</td><td class="sc-tb-c"> 11,802</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6"><img alt="These context notes may be posted on the College Navigator website." src="images/icon_navigator.gif" style="border:none"/> The notes below provide context for the data you've reported above and <b>may</b> be posted on the College Navigator website. Choose one option that best explains your data or choose "Non-applicable" if you do not wish to provide context notes. If none of the options provided explain your institution’s data, then choose "Other" and write your own context notes. Notes should be written to be understood by students and parents. For example, institutions may report here other sources of private aid not included in the categories listed.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6" nowrap="true"> Non-applicable</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="6" nowrap="true"> <textarea cols="54" id="cvt_f700102" name="cvt_f700102" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div>
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Section 1: Part E</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="7">Part E – Enter Information about Group 4</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="7">Group 4 students are all full-time, first-time degree/certificate-seeking undergraduate students enrolled in Fall 2017 who were awarded any Title IV federal student aid, including federal grants or federal student loans. The information you report in this part will be used in Part G to calculate average institutional net price by income level.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="7">For this part, report:</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><b>For These Students</b></td><td class="sc-tb-l" colspan="3"><b>The Following Type(s) of Aid</b></td><td class="sc-tb-l" colspan="2"><b>Awarded in This Period</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><ul><li>Full-time, first-time degree/certificate-seeking undergraduate students enrolled in Fall 2017 who were awarded any Title IV federal student aid</li></ul></td><td class="sc-tb-l" colspan="3"><ul><li>Grant or scholarship aid from:
+<ul><li>federal government</li><li>state/local government</li><li>institution</li></ul></li><li>Do <b>not</b> include:<ul><li> grant or scholarship aid from private or other sources</li><li>loan amounts</li><li> Federal Work Study amounts</li></ul></li></ul></td><td class="sc-tb-l" colspan="2"><ul><li>Any time during academic year 2017-18</li></ul></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="7"><b>In the fields below, report the number of Group 4 students with each type of living arrangement and the total amount of grant or scholarship aid from the federal government, state/local government, or the institution awarded to these students by income level.</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l" colspan="4"><b>Information from Part A:</b></td><td class="sc-s sc-tb-c"><b>2015-16</b></td><td class="sc-s sc-tb-c"><b>2016-17</b></td><td class="sc-s sc-tb-c"><b>2017-18</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l" colspan="4"><b>Group 4</b><br/>Full-time, first-time degree/certificate-seeking undergraduate students who were awarded any Title IV federal student aid<br/>(This number is carried forward from Part A, Line 04)</td><td class="sc-dbcalc-f-py sc-tb-c"> 163</td><td class="sc-dbcalc-f-py sc-tb-c"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2ababacb1b2a1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 100</td><td class="sc-dbcalc-f-py sc-tb-c"> 133</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" rowspan="2">01</td><td class="sc-tb-l" colspan="3" rowspan="2"><b>Report the number of Group 4 students with the following living arrangements:</b></td><td class="sc-tb-c"><b>YOUR PRIOR<br/>YEAR DATA</b></td><td class="sc-tb-c"><b>YOUR PRIOR<br/>YEAR DATA</b></td><td class="sc-tb-c"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><b>2015-16</b></td><td class="sc-tb-c"><b>2016-17</b></td><td class="sc-tb-c"><b>2017-18</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">01a</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(832)" style="color:Black">On-campus</a></td><td class="sc-dbcalc-f-py sc-tb-c"> 151</td><td class="sc-dbcalc-f-py sc-tb-c"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2ababacb2aca1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 96</td><td class="sc-tb-c" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababb4aca1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 <span class="sc-tbn" id="tb_f700091" name="tb_f700091" size="15" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">133</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">01b</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(971)" style="color:Black">Off-campus (with family)</a></td><td class="sc-dbcalc-f-py sc-tb-c"> 10</td><td class="sc-dbcalc-f-py sc-tb-c"> 4</td><td class="sc-tb-c" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2abababb4ada1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 <span class="sc-tbn" id="tb_f700092" name="tb_f700092" size="15" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">01c</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(972)" style="color:Black">Off-campus (not with family)</a></td><td class="sc-dbcalc-f-py sc-tb-c"> 2</td><td class="sc-dbcalc-f-py sc-tb-c"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2ababacb2aea1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 0</td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700093" name="tb_f700093" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">01d</td><td class="sc-tb-l" colspan="2">Unknown (calculated)<br/>This value is calculated using the formula: [A04-(E01a+E01b+E01c)]</td><td class="sc-s sc-tb-c" nowrap="true"> 0</td><td class="sc-s sc-tb-c" nowrap="true"> 0</td><td class="sc-s sc-tb-c" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3"> </td><td class="sc-tb-c"><b><b>Number</b> of students who were awarded any Title IV aid (Group 4)</b></td><td class="sc-tb-c"><b>Of those in Column 1, the <b>number</b> who were awarded any grant or scholarship aid from the following sources: the federal government, state/local government, or the institution</b></td><td class="sc-tb-c"><b>Of those in Column 1, the <b>total amount</b> of grant or scholarship aid awarded from the following sources: the federal government, state/local government, or the institution</b></td><td class="sc-tb-c"><img id="screenTip_58" src="images/icon_tip.gif" style="border:none; vertical-align:top;"/> <b><b>Average</b> amount of federal, state/local, and institutional grant or scholarship aid awarded to Group 4 students</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3"> </td><td class="sc-tb-c" colspan="4"><b>2015-16</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="3"> </td><td class="sc-tb-c"><b>Col. 1</b></td><td class="sc-tb-c"><b>Col. 2</b></td><td class="sc-tb-c"><b>Col. 3</b></td><td class="sc-tb-c"><b>Col. 4</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">02</td><td class="sc-tb-l" colspan="6"><b>Income level</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">02a</td><td class="sc-tb-l"><b>$0-30,000</b></td><td class="sc-dbcalc-f-py sc-tb-c"> 73</td><td class="sc-dbcalc-f-py sc-tb-c"> 73</td><td class="sc-dbcalc-f-py sc-tb-c"> 853,809</td><td class="sc-dbcalc-f-py sc-tb-c"> 11,696</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">02b</td><td class="sc-tb-l"><b>$30,001-48,000</b></td><td class="sc-dbcalc-f-py sc-tb-c"> 32</td><td class="sc-dbcalc-f-py sc-tb-c"> 31</td><td class="sc-dbcalc-f-py sc-tb-c"> 291,448</td><td class="sc-dbcalc-f-py sc-tb-c"> 9,108</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">02c</td><td class="sc-tb-l"><b>$48,001-75,000</b></td><td class="sc-dbcalc-f-py sc-tb-c"> 21</td><td class="sc-dbcalc-f-py sc-tb-c"> 21</td><td class="sc-dbcalc-f-py sc-tb-c"> 171,160</td><td class="sc-dbcalc-f-py sc-tb-c"> 8,150</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">02d</td><td class="sc-tb-l"><b>$75,001-110,000</b></td><td class="sc-dbcalc-f-py sc-tb-c"> 24</td><td class="sc-dbcalc-f-py sc-tb-c"> 22</td><td class="sc-dbcalc-f-py sc-tb-c"> 133,046</td><td class="sc-dbcalc-f-py sc-tb-c"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2ababb3adada1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 5,544</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">02e</td><td class="sc-tb-l"><b>$110,001 and more</b></td><td class="sc-dbcalc-f-py sc-tb-c"> 13</td><td class="sc-dbcalc-f-py sc-tb-c"> 13</td><td class="sc-dbcalc-f-py sc-tb-c"> 77,170</td><td class="sc-dbcalc-f-py sc-tb-c"> 5,936</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">02f</td><td class="sc-tb-l"><b>Total all income levels</b></td><td class="sc-dbcalc-f-py sc-tb-c"> 163</td><td class="sc-dbcalc-f-py sc-tb-c"> 160</td><td class="sc-dbcalc-f-py sc-tb-c"> 1,526,633</td><td class="sc-dbcalc-f-py sc-tb-c"> 9,366</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3"> </td><td class="sc-tb-c" colspan="4"><b>2016-17</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="3"> </td><td class="sc-tb-c"><b>Col. 1</b></td><td class="sc-tb-c"><b>Col. 2</b></td><td class="sc-tb-c"><b>Col. 3</b></td><td class="sc-tb-c"><b>Col. 4</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">03</td><td class="sc-tb-l" colspan="6"><b>Income level</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">03a</td><td class="sc-tb-l"><b>$0-30,000</b></td><td class="sc-dbcalc-f-py sc-tb-c"> 44</td><td class="sc-dbcalc-f-py sc-tb-c"> 44</td><td class="sc-dbcalc-f-py sc-tb-c"> 485,778</td><td class="sc-dbcalc-f-py sc-tb-c"> 11,040</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"> </td><td class="sc-tb-c">03b</td><td class="sc-tb-l"><b>$30,001-48,000</b></td><td class="sc-dbcalc-f-py sc-tb-c"> 22</td><td class="sc-dbcalc-f-py sc-tb-c"> 22</td><td class="sc-dbcalc-f-py sc-tb-c"> 196,378</td><td class="sc-dbcalc-f-py sc-tb-c"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2ababb2adaba1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 8,926</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"> </td><td class="sc-tb-c">03c</td><td class="sc-tb-l"><b>$48,001-75,000</b></td><td class="sc-dbcalc-f-py sc-tb-c"> 13</td><td class="sc-dbcalc-f-py sc-tb-c"> 13</td><td class="sc-dbcalc-f-py sc-tb-c"> 144,700</td><td class="sc-dbcalc-f-py sc-tb-c"> 11,131</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"> </td><td class="sc-tb-c">03d</td><td class="sc-tb-l"><b>$75,001-110,000</b></td><td class="sc-dbcalc-f-py sc-tb-c"> 14</td><td class="sc-dbcalc-f-py sc-tb-c"> 14</td><td class="sc-dbcalc-f-py sc-tb-c"> 82,685</td><td class="sc-dbcalc-f-py sc-tb-c"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2ababb2adb1a1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 5,906</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"> </td><td class="sc-tb-c">03e</td><td class="sc-tb-l"><b>$110,001 and more</b></td><td class="sc-dbcalc-f-py sc-tb-c"> 7</td><td class="sc-dbcalc-f-py sc-tb-c"> 7</td><td class="sc-dbcalc-f-py sc-tb-c"> 124,028</td><td class="sc-dbcalc-f-py sc-tb-c"> 17,718</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"> </td><td class="sc-tb-c">03f</td><td class="sc-tb-l"><b>Total all income levels</b></td><td class="sc-dbcalc-f-py sc-tb-c"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2ababb2aeaba1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 100</td><td class="sc-dbcalc-f-py sc-tb-c"> 100</td><td class="sc-dbcalc-f-py sc-tb-c"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2ababb2aeaca1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 1,033,569</td><td class="sc-dbcalc-f-py sc-tb-c"> 10,336</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3"> </td><td class="sc-tb-c" colspan="4"><b>2017-18</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="3"> </td><td class="sc-tb-c"><b>Col. 1</b></td><td class="sc-tb-c"><b>Col. 2</b></td><td class="sc-tb-c"><b>Col. 3</b></td><td class="sc-tb-c"><b>Col. 4</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">04</td><td class="sc-tb-l" colspan="6"><img id="screenTip_3" src="images/icon_tip.gif" style="border:none; vertical-align:top;"/> <b>Income level</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">04a</td><td class="sc-tb-l"><b>$0-30,000</b></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700095" name="tb_f700095" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">64</span></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700789" name="tb_f700789" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">64</span></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700106" name="tb_f700106" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">650,000</span></td><td class="sc-s sc-tb-c" nowrap="true"> 10,156</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"> </td><td class="sc-tb-c">04b</td><td class="sc-tb-l"><b>$30,001-48,000</b></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700096" name="tb_f700096" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">31</span></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700790" name="tb_f700790" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">31</span></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700107" name="tb_f700107" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">250,000</span></td><td class="sc-s sc-tb-c" nowrap="true"> 8,065</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"> </td><td class="sc-tb-c">04c</td><td class="sc-tb-l"><b>$48,001-75,000</b></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700097" name="tb_f700097" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">20</span></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700791" name="tb_f700791" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">20</span></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700108" name="tb_f700108" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">66,000</span></td><td class="sc-s sc-tb-c" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2ababacacaea1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 3,300</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"> </td><td class="sc-tb-c">04d</td><td class="sc-tb-l"><b>$75,001-110,000</b></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700098" name="tb_f700098" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">18</span></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700792" name="tb_f700792" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">18</span></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700109" name="tb_f700109" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">92,154</span></td><td class="sc-s sc-tb-c" nowrap="true"> 5,120</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"> </td><td class="sc-tb-c">04e</td><td class="sc-tb-l"><b>$110,001 and more</b></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700099" name="tb_f700099" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700793" name="tb_f700793" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-c" nowrap="true"> <span class="sc-tbn" id="tb_f700110" name="tb_f700110" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-c" nowrap="true">  </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"> </td><td class="sc-tb-c">04f</td><td class="sc-tb-l"><b>Total all income levels</b></td><td class="sc-s sc-tb-c" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2ababacaeb4a1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb29bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 133</td><td class="sc-s sc-tb-c" nowrap="true"> 133</td><td class="sc-s sc-tb-c" nowrap="true"> 1,058,154</td><td class="sc-s sc-tb-c" nowrap="true"> 7,956</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="7"><img alt="These context notes may be posted on the College Navigator website." src="images/icon_navigator.gif" style="border:none"/> The notes below provide context for the data you've reported above and <b>may</b> be posted on the College Navigator website. Choose one option that best explains your data or choose "Non-applicable" if you do not wish to provide context notes. If none of the options provided explain your institution’s data, then choose "Other" and write your own context notes. Notes should be written to be understood by students and parents. For example, institutions may report here other sources of private aid not included in the categories listed.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="7" nowrap="true"> Non-applicable</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="7" nowrap="true"> <textarea cols="54" id="cvt_f700103" name="cvt_f700103" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div>
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Section 1: Part F</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="7"><b>Part F – Net Price Calculation for Group 3</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="7">The following net price calculation is based on information that your institution reported in the Institutional Characteristics component and the Student Financial Aid component. For more information about the data your institution reported in the Institutional Characteristics component, please contact your institution’s IPEDS Keyholder.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="4" rowspan="2"> </td><td class="sc-tb-c"><b>YOUR PRIOR<br/>YEAR DATA</b></td><td class="sc-tb-c"><b>YOUR PRIOR<br/>YEAR DATA</b></td><td class="sc-tb-c" rowspan="2"><b>2017-18</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><b>2015-16</b></td><td class="sc-tb-c"><b>2016-17</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"> </td><td class="sc-tb-l" colspan="3"><b>Components of cost of attendance</b></td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">01</td><td class="sc-tb-l" colspan="3">Published <a href="javascript:openglossary(848)">tuition</a> and <a href="javascript:openglossary(788)">required fees</a> </td><td class="sc-s sc-tb-r"> 21,480</td><td class="sc-s sc-tb-r"> 21,480</td><td class="sc-s sc-tb-r"> 21,480</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">02</td><td class="sc-tb-l" colspan="3"><a href="javascript:openglossary(89)">Books and supplies</a></td><td class="sc-s sc-tb-r"> 1,819</td><td class="sc-s sc-tb-r"> 1,900</td><td class="sc-s sc-tb-r"> 1,800</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">03</td><td class="sc-tb-l" colspan="3"><b><a href="javascript:openglossary(565)">Room</a> and <a href="javascript:openglossary(87)">board</a> and <a href="javascript:openglossary(718)">other expenses</a> by living arrangement</b></td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">03a</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(832)" style="color:Black">On-campus</a></td><td class="sc-s sc-tb-r"> 15,532</td><td class="sc-s sc-tb-r"> 15,790</td><td class="sc-s sc-tb-r"> 13,790</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">03b</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(971)" style="color:Black">Off-campus (with family)</a></td><td class="sc-s sc-tb-r"> 3,572</td><td class="sc-s sc-tb-r"> 4,000</td><td class="sc-s sc-tb-r"> 3,000</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">03c</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(972)" style="color:Black">Off-campus (not with family)</a></td><td class="sc-s sc-tb-r"> 14,551</td><td class="sc-s sc-tb-r"> 15,790</td><td class="sc-s sc-tb-r"> 13,790</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">04</td><td class="sc-tb-l" colspan="3"><b>Number of Group 3 students by living arrangement</b></td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">04a</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(832)" style="color:Black">On-campus</a></td><td class="sc-s sc-tb-r"> 182</td><td class="sc-s sc-tb-r"> 105</td><td class="sc-s sc-tb-r"> 133</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">04b</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(971)" style="color:Black">Off-campus (with family)</a></td><td class="sc-s sc-tb-r"> 10</td><td class="sc-s sc-tb-r"> 5</td><td class="sc-s sc-tb-r"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">04c</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(972)" style="color:Black">Off-campus (not with family)</a></td><td class="sc-s sc-tb-r"> 2</td><td class="sc-s sc-tb-r"> 0</td><td class="sc-s sc-tb-r"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">04d</td><td class="sc-tb-l" colspan="2">Unknown</td><td class="sc-s sc-tb-r"> 0</td><td class="sc-s sc-tb-r"> 0</td><td class="sc-s sc-tb-r"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">05</td><td class="sc-tb-l" colspan="3"><b>Weighted average for room and board and other expenses by living arrangement (excluding unknown values)</b><br/>See instructions for the formula for this calculation</td><td class="sc-s sc-tb-r" nowrap="true"> 14,905</td><td class="sc-s sc-tb-r" nowrap="true"> 15,254</td><td class="sc-s sc-tb-r" nowrap="true"> 13,790</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">06</td><td class="sc-tb-l" colspan="3"><b>Total cost of attendance</b> <br/>This value is calculated using the following formula: [F01+F02+F05]</td><td class="sc-s sc-tb-r" nowrap="true"> 38,204</td><td class="sc-s sc-tb-r" nowrap="true"> 38,634</td><td class="sc-s sc-tb-r" nowrap="true"> 37,070</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">07</td><td class="sc-tb-l" colspan="3"><b>Average amount of grant or scholarship aid awarded to Group 3 students from the following sources: the federal government, state/local government, and the institution</b></td><td class="sc-s sc-tb-r" nowrap="true"> 20,224</td><td class="sc-s sc-tb-r" nowrap="true"> 17,486</td><td class="sc-s sc-tb-r" nowrap="true"> 11,802</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">08</td><td class="sc-tb-l" colspan="3"><b>Average institutional <a href="javascript:openglossary(978)">net price</a> for Group 3 students</b><br/>This value is calculated using the following formula: [F06-F07]</td><td class="sc-s sc-tb-r" nowrap="true"> 17,980</td><td class="sc-s sc-tb-r" nowrap="true"> 21,148</td><td class="sc-s sc-tb-r" nowrap="true"> 25,268</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="7">As required by the <i>Higher Education Act, as amended (2008)</i>, these amounts will be posted on the U.S. Department of Education’s College Navigator website and used in the U.S. Department of Education’s College Affordability and Transparency Lists.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="7"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="7"><img alt="These context notes may be posted on the College Navigator website." src="images/icon_navigator.gif" style="border:none"/> The notes below provide context for the data you've reported above and <b>may</b> be posted on the College Navigator website. Choose one option that best explains your data or choose "Non-applicable" if you do not wish to provide context notes. If none of the options provided explains your institution’s data, then choose "Other" and write your own context notes. Notes should be written to be understood by students and parents. For example, institutions may report here other sources of private aid not included in the categories listed.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="7" nowrap="true"> Non-applicable</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="7" nowrap="true"> <textarea cols="54" id="cvt_f700125" name="cvt_f700125" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div>
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Section 1: Part G</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="7"><b>Part G – Net Price Calculation for Group 4</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="7">The following net price calculation is based on information that your institution reported in the Institutional Characteristics component and the Student Financial Aid component. For more information about the data your institution reported in the Institutional Characteristics component, please contact your institution’s IPEDS Keyholder.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="4" rowspan="2"> </td><td class="sc-tb-c"><b>YOUR PRIOR<br/>YEAR DATA</b></td><td class="sc-tb-c"><b>YOUR PRIOR<br/>YEAR DATA</b></td><td class="sc-tb-c" rowspan="2"><b>2017-18</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><b>2015-16</b></td><td class="sc-tb-c"><b>2016-17</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"> </td><td class="sc-tb-l" colspan="3"><b>Components of cost of attendance</b></td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">01</td><td class="sc-tb-l" colspan="3">Published <a href="javascript:openglossary(848)">tuition</a> and <a href="javascript:openglossary(788)">required fees</a> </td><td class="sc-s sc-tb-r"> 21,480</td><td class="sc-s sc-tb-r"> 21,480</td><td class="sc-s sc-tb-r"> 21,480</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">02</td><td class="sc-tb-l" colspan="3"><a href="javascript:openglossary(89)">Books and supplies</a></td><td class="sc-s sc-tb-r"> 1,819</td><td class="sc-s sc-tb-r"> 1,900</td><td class="sc-s sc-tb-r"> 1,800</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">03</td><td class="sc-tb-l" colspan="3"><b><a href="javascript:openglossary(565)">Room</a> and <a href="javascript:openglossary(87)">board</a> and <a href="javascript:openglossary(718)">other expenses</a> by living arrangement</b></td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">03a</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(832)" style="color:Black">On-campus</a></td><td class="sc-s sc-tb-r"> 15,532</td><td class="sc-s sc-tb-r"> 15,790</td><td class="sc-s sc-tb-r"> 13,790</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">03b</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(971)" style="color:Black">Off-campus (with family)</a></td><td class="sc-s sc-tb-r"> 3,572</td><td class="sc-s sc-tb-r"> 4,000</td><td class="sc-s sc-tb-r"> 3,000</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">03c</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(972)" style="color:Black">Off-campus (not with family)</a></td><td class="sc-s sc-tb-r"> 14,551</td><td class="sc-s sc-tb-r"> 15,790</td><td class="sc-s sc-tb-r"> 13,790</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">04</td><td class="sc-tb-l" colspan="3"><b>Number of Group 4 students by living arrangement</b></td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">04a</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(832)" style="color:Black">On-campus</a></td><td class="sc-s sc-tb-r"> 151</td><td class="sc-s sc-tb-r"> 96</td><td class="sc-s sc-tb-r"> 133</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">04b</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(971)" style="color:Black">Off-campus (with family)</a></td><td class="sc-s sc-tb-r"> 10</td><td class="sc-s sc-tb-r"> 4</td><td class="sc-s sc-tb-r"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">04c</td><td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(972)" style="color:Black">Off-campus (not with family)</a></td><td class="sc-s sc-tb-r"> 2</td><td class="sc-s sc-tb-r"> 0</td><td class="sc-s sc-tb-r"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">04d</td><td class="sc-tb-l" colspan="2">Unknown</td><td class="sc-s sc-tb-r"> 0</td><td class="sc-s sc-tb-r"> 0</td><td class="sc-s sc-tb-r"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">05</td><td class="sc-tb-l" colspan="3"><b>Weighted average for room and board and other expenses by living arrangement (excluding unknown values)</b><br/>See instructions for the formula for this calculation</td><td class="sc-s sc-tb-r" nowrap="true"> 14,786</td><td class="sc-s sc-tb-r" nowrap="true"> 15,318</td><td class="sc-s sc-tb-r" nowrap="true"> 13,790</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">06</td><td class="sc-tb-l" colspan="3"><b>Total cost of attendance by income level</b><br/>This value is calculated using the following formula: [G01+G02+G05]</td><td class="sc-s sc-tb-r" nowrap="true"> 38,085</td><td class="sc-s sc-tb-r" nowrap="true"> 38,698</td><td class="sc-s sc-tb-r" nowrap="true"> 37,070</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">07</td><td class="sc-tb-l" colspan="3"><b>Average amount of grant or scholarship aid awarded to Group 4 students from the following sources: the federal government, state/local government, and the institution</b></td><td class="sc-s sc-tb-r" nowrap="true"> 9,366</td><td class="sc-s sc-tb-r" nowrap="true"> 10,336</td><td class="sc-s sc-tb-r" nowrap="true"> 7,956</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">07a</td><td class="sc-tb-l" colspan="2"><b>$0-30,000</b></td><td class="sc-s sc-tb-r" nowrap="true"> 11,696</td><td class="sc-s sc-tb-r" nowrap="true"> 11,040</td><td class="sc-s sc-tb-r" nowrap="true"> 10,156</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">07b</td><td class="sc-tb-l" colspan="2"><b>$30,001-48,000</b></td><td class="sc-s sc-tb-r" nowrap="true"> 9,108</td><td class="sc-s sc-tb-r" nowrap="true"> 8,926</td><td class="sc-s sc-tb-r" nowrap="true"> 8,065</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">07c</td><td class="sc-tb-l" colspan="2"><b>$48,001-75,000</b></td><td class="sc-s sc-tb-r" nowrap="true"> 8,150</td><td class="sc-s sc-tb-r" nowrap="true"> 11,131</td><td class="sc-s sc-tb-r" nowrap="true"> 3,300</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">07d</td><td class="sc-tb-l" colspan="2"><b>$75,001-110,000</b></td><td class="sc-s sc-tb-r" nowrap="true"> 5,544</td><td class="sc-s sc-tb-r" nowrap="true"> 5,906</td><td class="sc-s sc-tb-r" nowrap="true"> 5,120</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">07e</td><td class="sc-tb-l" colspan="2"><b>$110,001 and more</b></td><td class="sc-s sc-tb-r" nowrap="true"> 5,936</td><td class="sc-s sc-tb-r" nowrap="true"> 17,718</td><td class="sc-s sc-tb-r" nowrap="true">  </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">08</td><td class="sc-tb-l" colspan="3"><b>Average institutional <a href="javascript:openglossary(978)">net price</a> for Group 4 students</b><br/>This value is calculated using the following formula: [G06-G07]</td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">08a</td><td class="sc-tb-l" colspan="2"><b>$0-30,000</b></td><td class="sc-s sc-tb-r" nowrap="true"> 26,389</td><td class="sc-s sc-tb-r" nowrap="true"> 27,658</td><td class="sc-s sc-tb-r" nowrap="true"> 26,914</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">08b</td><td class="sc-tb-l" colspan="2"><b>$30,001-48,000</b></td><td class="sc-s sc-tb-r" nowrap="true"> 28,977</td><td class="sc-s sc-tb-r" nowrap="true"> 29,772</td><td class="sc-s sc-tb-r" nowrap="true"> 29,005</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">08c</td><td class="sc-tb-l" colspan="2"><b>$48,001-75,000</b></td><td class="sc-s sc-tb-r" nowrap="true"> 29,935</td><td class="sc-s sc-tb-r" nowrap="true"> 27,567</td><td class="sc-s sc-tb-r" nowrap="true"> 33,770</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">08d</td><td class="sc-tb-l" colspan="2"><b>$75,001-110,000</b></td><td class="sc-s sc-tb-r" nowrap="true"> 32,541</td><td class="sc-s sc-tb-r" nowrap="true"> 32,792</td><td class="sc-s sc-tb-r" nowrap="true"> 31,950</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">08e</td><td class="sc-tb-l" colspan="2"><b>$110,001 and more</b></td><td class="sc-s sc-tb-r" nowrap="true"> 32,149</td><td class="sc-s sc-tb-r" nowrap="true"> 20,980</td><td class="sc-s sc-tb-r" nowrap="true">  </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="7">As required by the <i>Higher Education Act, as amended (2008)</i>, these amounts will be posted on the U.S. Department of Education’s College Navigator website.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="7"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="7"><img alt="These context notes may be posted on the College Navigator website." src="images/icon_navigator.gif" style="border:none"/> The notes below provide context for the data you've reported above and <b>may</b> be posted on the College Navigator website. Choose one option that best explains your data or choose "Non-applicable" if you do not wish to provide context notes. If none of the options provided explain your institution’s data, then choose "Other" and write your own context notes. Notes should be written to be understood by students and parents. For example, institutions may report here other sources of private aid not included in the categories listed.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="7" nowrap="true"> Non-applicable</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="7" nowrap="true"> <textarea cols="54" id="cvt_f700135" name="cvt_f700135" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div>
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;">Section 2: Military Servicemembers and Veteran's Benefits - Undergraduate and Graduate</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="5">Section 2: Military Servicemembers and Veteran's Benefits</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5">IMPORTANT NOTE: Report for <b> Post-9/11 GI Bill Benefits: July 1, 2017 - June 30, 2018</b> and Report for <b> Department of Defense Tuition Assistance Program: October 1, 2017 - September 30, 2018</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5"><ul><li>Report the total number of student recipients and the total dollar amounts for each program.</li><li>Student recipients can also include eligible dependents.</li><li>Consult with your campus certifying official, who may not be in the student financial aid office.</li><li>For Post-9/11 GI Bill Benefits, do not include the matching institutional aid provided through the <a href="javascript:openglossary(1044)">Yellow Ribbon Program</a> if your school participated.</li><li>Information reported to IPEDS is only what is known to the institution.</li><li>Enter zero (0) if your institution did not have beneficiaries for that student level or program. Please do not leave a cell blank.</li></ul></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="4"> </td><td class="sc-tb-c"><b>YOUR PRIOR YEAR DATA</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b>Type of benefit/assistance</b></td><td class="sc-tb-c"><b>Number of students<br/>receiving benefits/assistance</b></td><td class="sc-tb-c"><b>Total dollar amount of<br/>benefits/assistance disbursed<br/>through the institution</b></td><td class="sc-tb-c"><b>Average dollar amount of<br/>benefits/assistance disbursed<br/>through the institution</b></td><td class="sc-tb-c"><b>Average dollar amount of<br/>benefits/assistance disbursed<br/>through the institution</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5"><a href="javascript:openglossary(1043)" style="color:Black">Post-9/11 GI Bill Benefits</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Undergraduate students</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700888" name="tb_f700888" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">6</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700889" name="tb_f700889" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">119,725</span></td><td class="sc-s sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b2a1e1e4e0e7dfe4dfb8b2ababb4adaba1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8b4aab0aaadabacb49bacb5ababb5abb49bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 19,954</td><td class="sc-dbcalc-f-py sc-tb-r"> 15,636</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Graduate students</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700892" name="tb_f700892" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700893" name="tb_f700893" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true">  </td><td class="sc-dbcalc-f-py sc-tb-r">  </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total</td><td class="sc-s sc-tb-r" nowrap="true"> 6</td><td class="sc-s sc-tb-r" nowrap="true"> 119,725</td><td class="sc-s sc-tb-r" nowrap="true"> 19,954</td><td class="sc-dbcalc-f-py sc-tb-r"> 15,636</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5"><a href="javascript:openglossary(1046)" style="color:Black">Department of Defense Tuition Assistance Program</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Undergraduate students</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700890" name="tb_f700890" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700891" name="tb_f700891" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true">  </td><td class="sc-dbcalc-f-py sc-tb-r">  </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Graduate students</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700894" name="tb_f700894" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f700895" name="tb_f700895" style="width:66px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true">  </td><td class="sc-dbcalc-f-py sc-tb-r">  </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true">  </td><td class="sc-dbcalc-f-py sc-tb-r">  </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5"> </td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div>
+<table border="0" cellpadding="4px" cellspacing="0" class="shade" width="650"><tbody><tr><td align="left" width="500">Institution: Fisk University (220181) </td><td align="right"></td></tr></tbody></table>
+</div><div style="padding:4px;width:650px;border:none;font-weight:bold;">Summary</div>
+<div>
+<style type="text/css">
+    table.grid
+    {
+        border-collapse: collapse;
+        font-size: 9px;
+    }
+    table.grid td
+    {
+        border: 1px solid #c7ddea;
+        font-size: 10px;
+        padding: 4px;
+        vertical-align: top;
+    }
+    table.grid tr.alt td
+    {
+        background-color: #F3F5F7;
+    }
+    table.grid th
+    {
+        background-color: #D2DFE5;
+        border: 1px solid #c7ddea;
+        padding: 4px;
+        text-align:center;
+    }
+    td.number
+    {
+        text-align: right;
+    }
+    td.number span
+    {
+        margin-right: 10px;
+    }
+    td.numberWide
+    {
+        text-align: right;
+    }
+    td.numberWide span
+    {
+        margin-right: 320px;
+    }
+</style>
+<div style="width:650px">
+<div style="padding-top:20px; text-align:center; font-family:Verdana; font-size:14px; font-weight:bold; color:#336699;">
+        IPEDS Student Financial Aid (SFA) Survey Summary
+    </div>
+<p id="header1">
+        IPEDS collects important information regarding your institution.  All data reported in IPEDS survey
+        components become available in the IPEDS Data Center and appear as aggregated data in various Department
+        of Education reports. Additionally, some of the reported data appears specifically for your institution
+        through the College Navigator website and is included in your institution’s Data Feedback Report (DFR).
+        The purpose of this summary is to provide you an opportunity to view some of the data that, when accepted
+        through the IPEDS quality control process, will appear on the College Navigator website and/or your DFR.
+        College Navigator is updated approximately three months after the data collection period closes and Data
+        Feedback Reports will be available through the <a href="https://nces.ed.gov/ipeds/use-the-data" target="_blank">Data Center</a> and sent to your institution’s CEO in November 2018. 
+    </p>
+<p id="header2">
+        Please review your data for accuracy.  If you have questions about the data displayed below after reviewing
+        the data reported on the survey screens, please contact the IPEDS Help Desk at: 1-877-225-2568 or
+        <a href="mailto:ipedshelp@rti.org">ipedshelp@rti.org</a>.
+    </p>
+<table class="grid" id="tblSFAt1" style="width:80%">
+<tbody><tr class="alt" id="Tr1">
+<td class="" colspan="2" style="width: 300px;">Total grant aid received by all undergraduate students</td>
+<td class="" style="width: 100px;text-align:right;"><span id="lblSFAt1l1">$11,500,542</span></td>
+</tr>
+<tr id="Tr2">
+<td class="" colspan="2" style="width: 300px;">Number of undergraduate students who received a Pell Grant</td>
+<td class="" style="text-align:right;"><span id="lblSFAt1l2">376</span></td>
+</tr>
+<tr class="alt" id="Tr3">
+<td class="" colspan="2" style="width: 300px;">Percentage of FTFT students receiving any financial aid</td>
+<td class="" style="text-align:right;"><span id="lblSFAt1l3">93%</span></td>
+</tr>
+<tr id="Tr22">
+<td class="" colspan="3"> </td>
+</tr>
+<tr class="alt" id="Tr4">
+<td class="" style="width: 200px;"> </td>
+<td class="" style="width: 100px;">Percentage of FTFT students receiving grant aid by type</td>
+<td class="" style="width: 100px;">Average amount of grant aid received by type</td>
+</tr>
+<tr id="Tr5">
+<td class="" style="width: 200px;">Total</td>
+<td class="" style="text-align:right;"><span id="lblSFAt2l1_1">93%</span></td>
+<td class="" style="text-align:right;"><span id="lblSFAt2l1_2">$11,802</span></td>
+</tr>
+<tr class="alt" id="Tr6">
+<td class="" style="width: 200px; padding-left:30px;">Federal Government</td>
+<td class="" style="text-align:right;"><span id="lblSFAt2l2_1">78%</span></td>
+<td class="" style="text-align:right;"><span id="lblSFAt2l2_2">$2,710</span></td>
+</tr>
+<tr id="Tr7">
+<td class="" style="width: 200px; padding-left:60px;">Pell</td>
+<td class="" style="text-align:right;"><span id="lblSFAt2l3_1">78%</span></td>
+<td class="" style="text-align:right;"><span id="lblSFAt2l3_2">$2,658</span></td>
+</tr>
+<tr class="alt" id="Tr8">
+<td class="" style="width: 200px; padding-left:60px;">Other Federal</td>
+<td class="" style="text-align:right;"><span id="lblSFAt2l4_1">21%</span></td>
+<td class="" style="text-align:right;"><span id="lblSFAt2l4_2">$195</span></td>
+</tr>
+<tr id="Tr9">
+<td class="" style="width: 200px; padding-left:30px;">State/Local Government</td>
+<td class="" style="text-align:right;"><span id="lblSFAt2l5_1">28%</span></td>
+<td class="" style="text-align:right;"><span id="lblSFAt2l5_2">$3,054</span></td>
+</tr>
+<tr class="alt" id="Tr10">
+<td class="" style="width: 200px; padding-left:30px;">Institutional</td>
+<td class="" style="text-align:right;"><span id="lblSFAt2l6_1">93%</span></td>
+<td class="" style="text-align:right;"><span id="lblSFAt2l6_2">$8,601</span></td>
+</tr>
+<tr id="Tr23">
+<td class="" colspan="3"> </td>
+</tr>
+<tr class="alt" id="Tr11">
+<td class="" style="width: 200px;"> </td>
+<td class="" style="width: 100px;">Percentage of FTFT students receiving loans by type</td>
+<td class="" style="width: 100px;">Average amount of loans received by type</td>
+</tr>
+<tr id="Tr12">
+<td class="" style="width: 200px;">Total</td>
+<td class="" style="text-align:right;"><span id="lblSFAt3l1_1">93%</span></td>
+<td class="" style="text-align:right;"><span id="lblSFAt3l1_2">$8,909</span></td>
+</tr>
+<tr class="alt" id="Tr13">
+<td class="" style="width: 200px; padding-left:30px;">Federal</td>
+<td class="" style="text-align:right;"><span id="lblSFAt3l2_1">93%</span></td>
+<td class="" style="text-align:right;"><span id="lblSFAt3l2_2">$8,627</span></td>
+</tr>
+<tr id="Tr14">
+<td class="" style="width: 200px; padding-left:30px;">Non-federal</td>
+<td class="" style="text-align:right;"><span id="lblSFAt3l3_1">3%</span></td>
+<td class="" style="text-align:right;"><span id="lblSFAt3l3_2">$9,375</span></td>
+</tr>
+<tr id="Tr24">
+<td class="" colspan="3"> </td>
+</tr>
+<tr class="alt" id="Tr15">
+<td class="" colspan="2" style="width: 300px;">Average net price for FTFT students who receive grant aid</td>
+<td class="" style="width: 100px;text-align:right;"><span id="lblSFAt4l1">$25,268</span></td>
+</tr>
+<tr id="Tr16">
+<td class="" colspan="2" style="width: 300px;">Average net price for FTFT students who receive Title IV federal student aid</td>
+<td class="" style="text-align:right;"> </td>
+</tr>
+<tr class="alt" id="Tr17">
+<td class="" colspan="2" style="width: 300px; padding-left:30px;">$0 – 30,000</td>
+<td class="" style="text-align:right;"><span id="lblSFAt4l2">$26,914</span></td>
+</tr>
+<tr id="Tr18">
+<td class="" colspan="2" style="width: 300px; padding-left:30px;">$30,001 – 48,000</td>
+<td class="" style="text-align:right;"><span id="lblSFAt4l3">$29,005</span></td>
+</tr>
+<tr class="alt" id="Tr19">
+<td class="" colspan="2" style="width: 300px; padding-left:30px;">$48,001 – 75,000</td>
+<td class="" style="text-align:right;"><span id="lblSFAt4l4">$33,770</span></td>
+</tr>
+<tr id="Tr20">
+<td class="" colspan="2" style="width: 300px; padding-left:30px;">$75,001 – 110,000</td>
+<td class="" style="text-align:right;"><span id="lblSFAt4l5">$31,950</span></td>
+</tr>
+<tr class="alt" id="Tr21">
+<td class="" colspan="2" style="width: 300px; padding-left:30px;">$110,001 and more</td>
+<td class="" style="text-align:right;"><span id="lblSFAt4l6">N/A</span></td>
+</tr>
+</tbody></table>
+<br/>
+<table class="grid" id="tblSFAt2" style="width:80%">
+<tbody><tr class="alt" id="Tr25">
+<td class="" colspan="4" style="width: 400px;"><b>Military Servicemembers and Veteran's Benefits</b></td>
+</tr>
+<tr id="Tr29">
+<td class="" colspan="2" style="width: 300px;"> </td>
+<td class="" style="width: 50px;text-align:right;">Number of students receiving benefits/assistance</td>
+<td class="" style="width: 50px;text-align:right;">Total dollar amount of benefits/assistance awarded through the institution</td>
+</tr>
+<tr class="alt" id="Tr26">
+<td class="" colspan="4" style="width: 400px;">Post-9/11 GI Bill Benefits</td>
+</tr>
+<tr id="Tr911UG">
+<td class="" style="width: 50px;"> </td>
+<td class="" style="width: 250px;">Undergraduate students</td>
+<td class="" style="width: 50px;text-align:right;"><span id="lbl911UGN">6</span></td>
+<td class="" style="width: 50px;text-align:right;"><span id="lbl911UGM">$119,725</span></td>
+</tr>
+<tr class="alt" id="Tr911G">
+<td class="" style="width: 50px;"> </td>
+<td class="" style="width: 250px;">Graduate students</td>
+<td class="" style="width: 50px;text-align:right;"><span id="lbl911GN">0</span></td>
+<td class="" style="width: 50px;text-align:right;"><span id="lbl911GM">$0</span></td>
+</tr>
+<tr id="Tr911T">
+<td class="" style="width: 50px;"> </td>
+<td class="" style="width: 250px;">Total</td>
+<td class="" style="width: 50px;text-align:right;"><span id="lbl911TN">6</span></td>
+<td class="" style="width: 50px;text-align:right;"><span id="lbl911TM">$119,725</span></td>
+</tr>
+<tr class="alt" id="Tr30">
+<td class="" colspan="4" style="width: 400px;">Department of Defense Tuition Assistance Program</td>
+</tr>
+<tr id="TrTAPUG">
+<td class="" style="width: 50px;"> </td>
+<td class="" style="width: 250px;">Undergraduate students</td>
+<td class="" style="width: 50px;text-align:right;"><span id="lblTAPUGN">0</span></td>
+<td class="" style="width: 50px;text-align:right;"><span id="lblTAPUGM">$0</span></td>
+</tr>
+<tr class="alt" id="TrTAPG">
+<td class="" style="width: 50px;"> </td>
+<td class="" style="width: 250px;">Graduate students</td>
+<td class="" style="width: 50px;text-align:right;"><span id="lblTAPGN">0</span></td>
+<td class="" style="width: 50px;text-align:right;"><span id="lblTAPGM">$0</span></td>
+</tr>
+<tr id="TrTAPT">
+<td class="" style="width: 50px;"> </td>
+<td class="" style="width: 250px;">Total</td>
+<td class="" style="width: 50px;text-align:right;"><span id="lblTAPTN">0</span></td>
+<td class="" style="width: 50px;text-align:right;"><span id="lblTAPTM">$0</span></td>
+</tr>
+</tbody></table>
+</div>
+</div>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div style="text-align:left">
+                    
+        		                  
+                    
+        </div></div>
+</div>
+</form>
+<div class="top"><a href="#top">Back to top</a></div>
+</body></html>

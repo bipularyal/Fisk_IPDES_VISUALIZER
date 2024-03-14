@@ -1,0 +1,399 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>
+	Reported Data
+</title>
+<style>
+        .page-header {
+            font-size: 16px;
+        }
+
+        @media print
+        {    
+            .page-header {
+                display: none;
+            }
+
+            .page-header-wrapper {
+                display: none;
+            }
+        }
+
+        select {
+            padding: 4px 4px;
+            font-size: 15px;
+            border-radius: 6px;
+        }
+
+        .mr-2 {
+            margin-right: 0.5em;
+        }
+
+        .mr-4 {
+            margin-right: 1em;
+        }
+
+        .mr-8 {
+            margin-right: 2em;
+        }
+
+        .btn {
+            border: 1px solid #999;
+            padding: 1px 10px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .loading-data {
+            margin: 20px auto 0 auto;
+            width: 150px;
+            text-align: center;
+        }
+
+        #top {
+            position: relative;
+            top: -100px;
+        }
+
+        .top {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            padding: 5px 5px;
+            background-color: #eee;
+            text-align: center;
+        }
+
+        .top a:link,
+        .top a:visited,
+        .top a:hover {
+            text-decoration: none;
+            color: #333;
+        }
+
+        .no-survey-found {
+            background-color: #f7f7f7;
+            padding: 20px 20px;
+            font-size: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .no-survey-found.show {
+            display: block;
+        }
+
+        #survey_content {
+            border:0px solid red;
+            margin-top: 20px;
+            padding-top: 10px;
+        }
+        .note-message {
+            padding: 8px 12px;
+            background-color: #fcfbec;
+            border:1px solid #c6c4a5;
+            border-radius:4px;
+            display:none;
+            font-size:13px;
+        }
+        .note-message.show {
+            display: block;
+        }
+    </style>
+<script src="scripts/jquery-3.6.0.js" type="text/javascript"></script>
+<script>
+        let year = 2004;
+        let prevYear = 2004;
+        let unitId = 220181;
+        let surveyNumber = 6;
+
+        function removeFacsimileStyleFiles() {
+            $('[data-year="2020"]').remove();
+            $('[data-year="2006"]').remove();
+            $('[data-year="2005"]').remove();
+            $('[data-year="20002004"]').remove();
+        }
+
+        function addFacsimileStyleFile() {
+            // update year
+            if (year >= 2020) {
+                addCssFile('facsimile/assets/css/styles.css', '2020');
+            } else if (year >= 2000 && year <= 2004) {
+                addCssFile('styles/fm_style00_04.css', '20002004');
+                addCssFile('styles/fm_style00_04_fixes.css', '20002004');
+            } else if (year === 2005) {
+                addCssFile('styles/fm_style05.css', '2005');
+            }
+            else if (year > 2005) {
+                addCssFile('styles/facsimile.css', '2006');
+            }
+        }
+
+        function addCssFile(fileName, dataYearAttr) {
+            var cssRef = document.createElement("link");
+            cssRef.setAttribute("rel", "stylesheet");
+            cssRef.setAttribute("type", "text/css");
+            cssRef.setAttribute("href", fileName);
+            cssRef.setAttribute('data-year', dataYearAttr);
+            document.getElementsByTagName("head")[0].appendChild(cssRef)
+        }
+
+        function loadContent() {
+            $('#survey_content').html('<div class="loading-data"><h2>Loading data...</h2></div>');
+            $('.no-survey-found').removeClass('show');
+            $('#data-revised-note').removeClass('show');
+            $('#data-not-revised-note').removeClass('show');
+           
+            $.ajax({
+                url: 'FacsimileView.aspx?action=data&year=' + year + '&prevYear=' + prevYear + '&unitId=' + unitId + '&surveyNumber=' + surveyNumber,
+                type: "GET",
+                cache: false,
+                success: function (data) {
+                    prevYear = year;
+                    var json = JSON.parse(data);
+                    $('#survey_content').html(json.SurveyHtml);
+
+                    //***************
+                    $('#data-not-revised-note').removeClass('show');
+                    $('#latest-year-data-not-revised-note').removeClass('show');
+                    $('#pre-2014-data-not-revised-note').removeClass('show');
+                    $('#data-revised-note').removeClass('show');
+
+                    // Message about revised data:
+                    if (year >= 2022 ) {
+                        $('#latest-year-data-not-revised-note').addClass('show');
+                    }
+                    else if (year >= 2014 && year<=2021) {
+
+                        if (json.DataRevised === true)
+                            $('#data-revised-note').addClass('show');
+                        else //if (json.DataRevised === false)
+                            $('#data-not-revised-note').addClass('show');
+                    }
+                    else
+                        $('#pre-2014-data-not-revised-note').addClass('show');
+
+
+                    const container = document.getElementById('survey_content');
+
+                    // Get all buttons within the container
+                    const buttons = container.querySelectorAll('button');
+
+                    // Loop through each button and disable it
+                    buttons.forEach(button => {
+                        button.disabled = true;
+                    });
+
+
+                    if (json.Surveys) {
+                        // we need to create new values in Survey dropdown
+                        let dropdown = $('#select-surveys')[0];
+                        // first remove all elements
+                        while (dropdown.options.length > 0)
+                            dropdown.remove(0);
+
+                        let surveyNumbers = Object.keys(json.Surveys);
+                        let surveyNumberExistsInDifferentYear = false;
+                        for (let i = 0; i < surveyNumbers.length; i++) {
+                            let opt = document.createElement('option');
+                            opt.value = surveyNumbers[i];
+                            if (surveyNumbers[i] == surveyNumber) {
+                                surveyNumberExistsInDifferentYear = true;
+                                opt.selected = true;
+                            }
+                            opt.innerHTML = json.Surveys[surveyNumbers[i]];
+                            dropdown.appendChild(opt);
+                        }
+                        // if survey does not exists, add empty <option>
+                        if (surveyNumberExistsInDifferentYear == false) {
+                            let opt = document.createElement('option');
+                            opt.value = '';
+                            opt.innerHTML = 'Select a survey';
+                            opt.selected = true;
+                            dropdown.add(opt, dropdown.options[0]);
+                            $('.no-survey-found').addClass('show');
+                            $('#data-not-revised-note').removeClass('show');
+                        }                       
+                            
+                    }
+
+                    // Update url to reflect selected year/survey
+                    //let newUrl = new URL(window.location.href);
+                    //let params = new URLSearchParams(newUrl.search);
+                    
+                   
+                    //params.set('year', year);
+                    //params.set('surveyNumber', surveyNumber)
+
+
+                    let searchParams = new URLSearchParams(window.location.search);
+
+                    searchParams.delete("surveynumber");
+                    searchParams.delete("year");
+                    searchParams.set('year', year);
+                    searchParams.set('surveyNumber', surveyNumber)
+
+                    if (window.history.replaceState) {
+                        const url = window.location.protocol
+                            + "//" + window.location.host
+                            + window.location.pathname
+                            + "?"
+                            + searchParams.toString();
+
+                        window.history.replaceState({
+                            path: url
+                        }, "", url)
+                    }
+
+
+                },
+                error: function (xhr, err) {
+                    console.log("Status: " + xhr.status + "\nResponse Text:" + xhr.responseText);
+                }
+            });
+        }
+
+        function selectSurvey(ev) {
+            surveyNumber = ev.target.value;
+            loadContent();
+        }
+
+        function selectYear(ev) {
+            year = +ev.target.value;
+            loadContent();
+
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+        }
+
+        function updateURLParameter(url, param, paramVal) {
+            let TheAnchor = null;
+            let newAdditionalURL = "";
+            let tempArray = url.split("?");
+            let baseURL = tempArray[0];
+            let additionalURL = tempArray[1];
+            let temp = "";
+
+            if (additionalURL) {
+                var tmpAnchor = additionalURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+                if (TheAnchor)
+                    additionalURL = TheParams;
+
+                tempArray = additionalURL.split("&");
+
+                for (var i = 0; i < tempArray.length; i++) {
+                    if (tempArray[i].split('=')[0] != param) {
+                        newAdditionalURL += temp + tempArray[i];
+                        temp = "&";
+                    }
+                }
+            }
+            else {
+                var tmpAnchor = baseURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+
+                if (TheParams)
+                    baseURL = TheParams;
+            }
+
+            if (TheAnchor)
+                paramVal += "#" + TheAnchor;
+
+            var rows_txt = temp + "" + param + "=" + paramVal;
+            return baseURL + "?" + newAdditionalURL + rows_txt;
+        }
+
+        
+
+        $(document).ready(function () {
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+            loadContent();
+        });
+
+        function printPage() {
+            window.print();
+        }
+    </script>
+<link data-year="20002004" href="styles/fm_style00_04.css" rel="stylesheet" type="text/css"/><link data-year="20002004" href="styles/fm_style00_04_fixes.css" rel="stylesheet" type="text/css"/></head>
+<body>
+<div class="page-header-wrapper" style="background-color: #eee; padding: 18px 6px;">
+<div class="page-header" style="width: 90%; margin: 0 auto;">
+<div style="display: flex; align-items: center!important;">
+<div class="mr-4">Reported Data: Fisk University </div>
+<div class="mr-4">|</div>
+<div class="mr-2">Select year:</div>
+<div class="mr-4">
+<select onchange="selectYear(event)">
+<option value="2022">2022</option>
+<option value="2021">2021</option>
+<option value="2020">2020</option>
+<option value="2019">2019</option>
+<option value="2018">2018</option>
+<option value="2017">2017</option>
+<option value="2016">2016</option>
+<option value="2015">2015</option>
+<option value="2014">2014</option>
+<option value="2013">2013</option>
+<option value="2012">2012</option>
+<option value="2011">2011</option>
+<option value="2010">2010</option>
+<option value="2009">2009</option>
+<option value="2008">2008</option>
+<option value="2007">2007</option>
+<option value="2006">2006</option>
+<option value="2005">2005</option>
+<option selected="" value="2004">2004</option>
+<option value="2003">2003</option>
+<option value="2002">2002</option>
+<option value="2001">2001</option>
+</select>
+</div>
+<div class="mr-2">Select survey:</div>
+<div class="mr-2">
+<select id="select-surveys" onchange="selectSurvey(event)">
+<option value="1">Institutional Characteristics</option>
+<option value="2">Fall Enrollment</option>
+<option value="3">Completions</option>
+<option value="8">Graduation Rates</option>
+<option value="7">Student Financial Aid and Net Price</option>
+<option selected="" value="6">Finance</option>
+<option value="11">Employees by Assigned Position</option>
+</select>
+</div>
+<div style="flex: 1 1 auto!important;"> </div>
+<div>
+<button class="mr-4 btn">
+<img onclick="printPage()" src="images/printer-svgrepo-com.svg" style="width: 15px"/>
+</button>
+<a href="Facsimile.aspx?unitId=220181">
+<img src="images/icon_close.svg" style="width: 25px"/>
+</a>
+</div>
+</div>
+</div>
+</div>
+<a id="top"></a>
+<form action="./facsimileView.aspx?unitid=220181&amp;surveynumber=6&amp;year=2004&amp;goToReportId=6" id="form1" method="post" name="form1">
+<div>
+<input id="__VIEWSTATE" name="__VIEWSTATE" type="hidden" value="/wEPDwUJNDk4MDAyNjQ0ZGQ1Rt5I0VdqjyBZxpj37FRHeGkbkoRpCmohM64NK8Nn3w=="/>
+</div>
+<div>
+<input id="__VIEWSTATEGENERATOR" name="__VIEWSTATEGENERATOR" type="hidden" value="3C3AC055"/>
+</div>
+<div style="width: 1000px; margin: 0 auto;">
+<div class="note-message" id="data-not-revised-note">Note: Institution did NOT submit revisions through the Prior Year Data Revision System for selected collection year and survey.</div>
+<div class="note-message" id="data-revised-note">Note: Reported data includes revisions made through the Prior Year Data Revision System for  selected collection year and survey.</div>
+<div class="note-message show" id="pre-2014-data-not-revised-note">Note: Reported data do not include revisions made through the Prior Year Data Revision System for any institution prior to collection year 2014.</div>
+<div class="note-message" id="latest-year-data-not-revised-note">Note: Revisions made through the Prior Year Data Revision System are not available for the selected collection year.</div>
+<div class="no-survey-found">
+                Please select survey from dropdown above
+            </div>
+<div id="survey_content"><div class="facsimile_assets"><table border="0" cellpadding="0" cellspacing="0" width="640"><tbody><tr><td align="center" colspan="2" valign="top"> <table border="0" cellpadding="0" cellspacing="1" class="paging" width="640"><tbody><tr><td align="CENTER" class="tableheading" colspan="3" rowspan="1" valign="top"><b><font class="tableheading1">Part A - Statement of Financial Position: FY2004</font></b></td></tr><tr><td align="CENTER" class="tableDetail3" colspan="3" rowspan="1" valign="top"><b><font class="tabledetail8">(in whole dollars)</font></b></td></tr><tr><td align="center" class="tableDetail" colspan="3" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td></tr><tr><td align="CENTER" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Line no.</font></b></td><td align="CENTER" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Assets, liabilities, and net assets</font></b></td><td align="RIGHT" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total amount</font></b></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="left" class="tableDetail" colspan="2" rowspan="1" valign="top"><b><font class="tabledetail8">Assets</font></b></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">01</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Long-term investments</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">19,749,104 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">02</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total assets</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">77,999,302 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="left" class="tableDetail3" colspan="2" rowspan="1" valign="top"><b><font class="tabledetail8">Liabilities</font></b></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">03</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total liabilities</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">16,092,300 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="left" class="tableDetail3" colspan="2" rowspan="1" valign="top"><b><font class="tabledetail8">Net assets</font></b></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">04</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total unrestricted net assets</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">36,775,694 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">05</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total restricted net assets</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">25,131,308 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">06</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total net assets</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">61,907,002 </font></td></tr><tr><td align="CENTER" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Line no.</font></b></td><td align="CENTER" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Plant, property and equipment</font></b></td><td align="RIGHT" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total amount<br/> (end of year)</font></b></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">11</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Land and land improvements  </font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">374,438 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">12</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Buildings</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">12,704,865 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">13</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Equipment, including art and library collections</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">51,358,183 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">14</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Property obtained under capital leases (if not included in equipment)</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr> </tbody></table></td></tr></tbody></table><br/><br/><table border="0" cellpadding="0" cellspacing="0" width="640"><tbody><tr><td align="center" colspan="2" valign="top"> <table border="0" cellpadding="0" cellspacing="1" class="paging" width="640"><tbody><tr><td align="CENTER" class="tableheading" colspan="3" rowspan="1" valign="top"><b><font class="tableheading1">Part B - Summary of Changes in Net Assets: FY2004</font></b></td></tr><tr><td align="CENTER" class="tableDetail3" colspan="3" rowspan="1" valign="top"><b><font class="tabledetail8">(in whole dollars)</font></b></td></tr><tr><td align="CENTER" class="tableDetail" colspan="3" rowspan="1" valign="top"><b><font class="tabledetail8">(CV - calculated value) </font></b></td></tr><tr><td align="CENTER" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Line no.</font></b></td><td align="CENTER" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Revenues, expenses, gains and losses</font></b></td><td align="RIGHT" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total amount</font></b></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">01</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total revenues and investment return</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">22,462,503 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">02</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total expenses
+</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">23,408,657 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">03</font></b></td><td align="LEFT" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Other specific changes in net assets (CV)</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">1,742,308 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">04</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Change in net assets</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">796,154 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">05</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Net assets, beginning of year</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">64,094,390 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">06</font></b></td><td align="LEFT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Adjustments to beginning of year net (CV)</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">-2,983,542 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">07</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Net assets, end of year</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">61,907,002 </font></td></tr> </tbody></table></td></tr></tbody></table><br/><br/><table border="0" cellpadding="0" cellspacing="0" width="640"><tbody><tr><td align="center" colspan="2" valign="top"> <table border="0" cellpadding="0" cellspacing="1" class="paging" width="640"><tbody><tr><td align="CENTER" class="tableheading" colspan="3" rowspan="1" valign="top"><b><font class="tableheading1">Part C - Student Grants: FY2004</font></b></td></tr><tr><td align="CENTER" class="tableDetail3" colspan="3" rowspan="1" valign="top"><b><font class="tabledetail8">(in whole dollars)</font></b></td></tr><tr><td align="CENTER" class="tableDetail" colspan="3" rowspan="1" valign="top"><b><font class="tabledetail8">(CV - calculated value) </font></b></td></tr><tr><td align="CENTER" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Line no.</font></b></td><td align="CENTER" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Student grants</font></b></td><td align="RIGHT" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total amount</font></b></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">01</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Pell grants  </font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">1,432,679 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">02</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Other federal grants  
+</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">239,225 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">03</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">State grants  </font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">154,965 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">04</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Local grants  </font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">154,965 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">05</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Institutional grants (funded)  </font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">862,097 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">06</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Institutional grants (unfunded)  </font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">2,556,702 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">07</font></b></td><td align="LEFT" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total student grants (CV)</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">5,400,633 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">08</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Allowances applied to tuition and fees  </font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">2,802,138 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">09</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Allowances applied to auxiliary enterprise revenues  </font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr> </tbody></table></td></tr></tbody></table><br/><br/><table border="0" cellpadding="0" cellspacing="0" width="640"><tbody><tr><td align="center" colspan="2" valign="top"> <table border="0" cellpadding="0" cellspacing="1" class="paging" width="640"><tbody><tr><td align="CENTER" class="tableheading" colspan="3" rowspan="1" valign="top"><b><font class="tableheading1">Part D - Revenues and Investment Return:  FY2004</font></b></td></tr><tr><td align="CENTER" class="tableDetail3" colspan="3" rowspan="1" valign="top"><b><font class="tabledetail8">(in whole dollars)</font></b></td></tr><tr><td align="CENTER" class="tableDetail" colspan="3" rowspan="1" valign="top"><b><font class="tabledetail8">(CV - calculated value) </font></b></td></tr><tr><td align="CENTER" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Line no.</font></b></td><td align="CENTER" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Source of funds</font></b></td><td align="RIGHT" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total amount</font></b></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">01</font></b></td><td align="LEFT" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Tuition and fees (net of allowances)</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">6,935,345 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="LEFT" class="tableDetail3" colspan="2" rowspan="1" valign="top"><b><font class="tabledetail8">Government appropriations</font></b></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">02</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Federal appropriations</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">03</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">State appropriations</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">04</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Local appropriations</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="LEFT" class="tableDetail3" colspan="2" rowspan="1" valign="top"><b><font class="tabledetail8">Government grants and contracts</font></b></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">05</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Federal grants and contracts</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">5,831,815 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">06</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">State grants and contracts</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">07</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Local grants and contracts</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="LEFT" class="tableDetail3" colspan="2" rowspan="1" valign="top"><b><font class="tabledetail8">Private gifts, grants and contracts</font></b></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">08</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Private gifts, grants and contracts</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">4,750,259 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">09</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Contributions from affiliated entities</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="LEFT" class="tableDetail" colspan="2" rowspan="1" valign="top"><b><font class="tabledetail8">Other revenues and investment return</font></b></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">10</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Investment return</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">994,122 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">11</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Sales and services of educational activities</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">12</font></b></td><td align="LEFT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Sales and services of auxiliary enterprises (net of allowances)</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">3,650,745 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">13</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Hospital revenue</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">14</font></b></td><td align="LEFT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Independent operations revenue</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">15</font></b></td><td align="LEFT" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Other revenue (CV)</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">300,217 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">16</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total revenues and investment return</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">22,462,503 </font></td></tr> </tbody></table></td></tr></tbody></table><br/><br/><table border="0" cellpadding="0" cellspacing="0" width="640"><tbody><tr><td align="center" colspan="2" valign="top"> <table border="0" cellpadding="0" cellspacing="1" class="paging" width="640"><tbody><tr><td align="CENTER" class="tableheading" colspan="9" rowspan="1" valign="top"><b><font class="tableheading1">Part E - Expenses by Functional and Natural Classification: FY2004</font></b></td></tr><tr><td align="CENTER" class="tableDetail3" colspan="9" rowspan="1" valign="top"><b><font class="tabledetail8">(in whole dollars) </font></b></td></tr><tr><td align="CENTER" class="tableDetail" colspan="9" rowspan="1" valign="top"><b><font class="tabledetail8">(CV - calculated value) </font></b></td></tr><tr><td align="LEFT" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Line no.</font></b></td><td align="LEFT" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Expenses by functional and natural classification</font></b></td><td align="LEFT" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total amount</font></b></td><td align="LEFT" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Salaries &amp; wages</font></b></td><td align="left" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Benefits</font></b></td><td align="left" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Operation and maintenance of plant</font></b></td><td align="left" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Depreciation  </font></b></td><td align="left" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Interest  </font></b></td><td align="LEFT" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">All other (CV)</font></b></td></tr><tr><td align="left" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="left" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="center" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">(1)</font></b></td><td align="center" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">(2)</font></b></td><td align="center" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">(3)</font></b></td><td align="center" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">(4)</font></b></td><td align="center" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">(5)</font></b></td><td align="center" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">(6)</font></b></td><td align="center" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">(7)</font></b></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">1</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Instruction</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">5,536,460 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">2,431,193 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">853,621 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">790,854 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">752,289 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">708,503 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">2</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Research</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">3,291,193 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">858,851 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">152,007 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">469,781 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">425,207 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">1,385,347 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">3</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Public service</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">4</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Academic support</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">2,475,797 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">886,053 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">118,788 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">351,451 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">327,082 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">792,423 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">5</font></b></td><td align="LEFT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Student services</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">2,972,681 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">857,515 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">204,946 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">422,465 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">392,498 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">1,095,257 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">6</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Institutional support </font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">7,497,297 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">2,343,661 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">516,598 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">1,101,780 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">1,046,663 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">144,150 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">2,344,445 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">7</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Auxiliary enterprises</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">1,635,229 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">516,221 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">120,279 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">243,351 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">327,083 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">428,295 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">8</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Net grant aid to students (net of tuition and fee allowances and agency transactions)</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">9</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Hospital services</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">10</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Independent operations </font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">11</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Operation and maintenance of plant</font></b></td><td align="right" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"></font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">85,756 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">17,837 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">-3,379,682 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">279,898 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">2,996,191 </font></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">12</font></b></td><td align="LEFT" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Other expenses (CV)</font></b></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td><td align="RIGHT" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">0 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">13</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Total expenses</font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">23,408,657 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">7,979,250 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">1,984,076 </font></td><td align="right" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8"></font></b></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">3,270,822 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">424,048 </font></td><td align="RIGHT" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">9,750,461 </font></td></tr> </tbody></table></td></tr></tbody></table><br/><br/><table border="0" cellpadding="0" cellspacing="0" width="640"><tbody><tr><td align="center" colspan="2" valign="top"> <table border="0" cellpadding="0" cellspacing="1" class="paging" width="640"><tbody><tr><td align="CENTER" class="tableheading" colspan="3" rowspan="1" valign="top"><b><font class="tableheading1">Part H - Details on Endowment Assets: FY2004</font></b></td></tr><tr><td align="CENTER" class="tableDetail3" colspan="3" rowspan="1" valign="top"><b><font class="tabledetail8">(in whole dollars) </font></b></td></tr><tr><td align="center" class="tableDetail" colspan="3" rowspan="1" valign="top"><b><font class="tabledetail8"> </font></b></td></tr><tr><td align="CENTER" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Line no.</font></b></td><td align="CENTER" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Value of endowment assets</font></b></td><td align="center" class="tabledetail4" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Market Value</font></b></td></tr><tr><td align="center" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">01</font></b></td><td align="left" class="tableDetail" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Value of endowment assets at the beginning of the fiscal year</font></b></td><td align="Right" class="tableDetail" colspan="1" rowspan="1" valign="top"><font class="tabledetail">13,203,079 </font></td></tr><tr><td align="center" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">02</font></b></td><td align="left" class="tableDetail3" colspan="1" rowspan="1" valign="top"><b><font class="tabledetail8">Value of endowment assets at the end of the fiscal year</font></b></td><td align="right" class="tableDetail3" colspan="1" rowspan="1" valign="top"><font class="tabledetail">19,749,104 </font></td></tr> </tbody></table></td></tr></tbody></table></div></div>
+</div>
+</form>
+<div class="top"><a href="#top">Back to top</a></div>
+</body></html>

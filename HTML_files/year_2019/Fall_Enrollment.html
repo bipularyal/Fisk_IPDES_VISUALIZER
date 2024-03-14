@@ -1,0 +1,1617 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>
+	Reported Data
+</title>
+<style>
+        .page-header {
+            font-size: 16px;
+        }
+
+        @media print
+        {    
+            .page-header {
+                display: none;
+            }
+
+            .page-header-wrapper {
+                display: none;
+            }
+        }
+
+        select {
+            padding: 4px 4px;
+            font-size: 15px;
+            border-radius: 6px;
+        }
+
+        .mr-2 {
+            margin-right: 0.5em;
+        }
+
+        .mr-4 {
+            margin-right: 1em;
+        }
+
+        .mr-8 {
+            margin-right: 2em;
+        }
+
+        .btn {
+            border: 1px solid #999;
+            padding: 1px 10px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .loading-data {
+            margin: 20px auto 0 auto;
+            width: 150px;
+            text-align: center;
+        }
+
+        #top {
+            position: relative;
+            top: -100px;
+        }
+
+        .top {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            padding: 5px 5px;
+            background-color: #eee;
+            text-align: center;
+        }
+
+        .top a:link,
+        .top a:visited,
+        .top a:hover {
+            text-decoration: none;
+            color: #333;
+        }
+
+        .no-survey-found {
+            background-color: #f7f7f7;
+            padding: 20px 20px;
+            font-size: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .no-survey-found.show {
+            display: block;
+        }
+
+        #survey_content {
+            border:0px solid red;
+            margin-top: 20px;
+            padding-top: 10px;
+        }
+        .note-message {
+            padding: 8px 12px;
+            background-color: #fcfbec;
+            border:1px solid #c6c4a5;
+            border-radius:4px;
+            display:none;
+            font-size:13px;
+        }
+        .note-message.show {
+            display: block;
+        }
+    </style>
+<script src="scripts/jquery-3.6.0.js" type="text/javascript"></script>
+<script>
+        let year = 2019;
+        let prevYear = 2019;
+        let unitId = 220181;
+        let surveyNumber = 15;
+
+        function removeFacsimileStyleFiles() {
+            $('[data-year="2020"]').remove();
+            $('[data-year="2006"]').remove();
+            $('[data-year="2005"]').remove();
+            $('[data-year="20002004"]').remove();
+        }
+
+        function addFacsimileStyleFile() {
+            // update year
+            if (year >= 2020) {
+                addCssFile('facsimile/assets/css/styles.css', '2020');
+            } else if (year >= 2000 && year <= 2004) {
+                addCssFile('styles/fm_style00_04.css', '20002004');
+                addCssFile('styles/fm_style00_04_fixes.css', '20002004');
+            } else if (year === 2005) {
+                addCssFile('styles/fm_style05.css', '2005');
+            }
+            else if (year > 2005) {
+                addCssFile('styles/facsimile.css', '2006');
+            }
+        }
+
+        function addCssFile(fileName, dataYearAttr) {
+            var cssRef = document.createElement("link");
+            cssRef.setAttribute("rel", "stylesheet");
+            cssRef.setAttribute("type", "text/css");
+            cssRef.setAttribute("href", fileName);
+            cssRef.setAttribute('data-year', dataYearAttr);
+            document.getElementsByTagName("head")[0].appendChild(cssRef)
+        }
+
+        function loadContent() {
+            $('#survey_content').html('<div class="loading-data"><h2>Loading data...</h2></div>');
+            $('.no-survey-found').removeClass('show');
+            $('#data-revised-note').removeClass('show');
+            $('#data-not-revised-note').removeClass('show');
+           
+            $.ajax({
+                url: 'FacsimileView.aspx?action=data&year=' + year + '&prevYear=' + prevYear + '&unitId=' + unitId + '&surveyNumber=' + surveyNumber,
+                type: "GET",
+                cache: false,
+                success: function (data) {
+                    prevYear = year;
+                    var json = JSON.parse(data);
+                    $('#survey_content').html(json.SurveyHtml);
+
+                    //***************
+                    $('#data-not-revised-note').removeClass('show');
+                    $('#latest-year-data-not-revised-note').removeClass('show');
+                    $('#pre-2014-data-not-revised-note').removeClass('show');
+                    $('#data-revised-note').removeClass('show');
+
+                    // Message about revised data:
+                    if (year >= 2022 ) {
+                        $('#latest-year-data-not-revised-note').addClass('show');
+                    }
+                    else if (year >= 2014 && year<=2021) {
+
+                        if (json.DataRevised === true)
+                            $('#data-revised-note').addClass('show');
+                        else //if (json.DataRevised === false)
+                            $('#data-not-revised-note').addClass('show');
+                    }
+                    else
+                        $('#pre-2014-data-not-revised-note').addClass('show');
+
+
+                    const container = document.getElementById('survey_content');
+
+                    // Get all buttons within the container
+                    const buttons = container.querySelectorAll('button');
+
+                    // Loop through each button and disable it
+                    buttons.forEach(button => {
+                        button.disabled = true;
+                    });
+
+
+                    if (json.Surveys) {
+                        // we need to create new values in Survey dropdown
+                        let dropdown = $('#select-surveys')[0];
+                        // first remove all elements
+                        while (dropdown.options.length > 0)
+                            dropdown.remove(0);
+
+                        let surveyNumbers = Object.keys(json.Surveys);
+                        let surveyNumberExistsInDifferentYear = false;
+                        for (let i = 0; i < surveyNumbers.length; i++) {
+                            let opt = document.createElement('option');
+                            opt.value = surveyNumbers[i];
+                            if (surveyNumbers[i] == surveyNumber) {
+                                surveyNumberExistsInDifferentYear = true;
+                                opt.selected = true;
+                            }
+                            opt.innerHTML = json.Surveys[surveyNumbers[i]];
+                            dropdown.appendChild(opt);
+                        }
+                        // if survey does not exists, add empty <option>
+                        if (surveyNumberExistsInDifferentYear == false) {
+                            let opt = document.createElement('option');
+                            opt.value = '';
+                            opt.innerHTML = 'Select a survey';
+                            opt.selected = true;
+                            dropdown.add(opt, dropdown.options[0]);
+                            $('.no-survey-found').addClass('show');
+                            $('#data-not-revised-note').removeClass('show');
+                        }                       
+                            
+                    }
+
+                    // Update url to reflect selected year/survey
+                    //let newUrl = new URL(window.location.href);
+                    //let params = new URLSearchParams(newUrl.search);
+                    
+                   
+                    //params.set('year', year);
+                    //params.set('surveyNumber', surveyNumber)
+
+
+                    let searchParams = new URLSearchParams(window.location.search);
+
+                    searchParams.delete("surveynumber");
+                    searchParams.delete("year");
+                    searchParams.set('year', year);
+                    searchParams.set('surveyNumber', surveyNumber)
+
+                    if (window.history.replaceState) {
+                        const url = window.location.protocol
+                            + "//" + window.location.host
+                            + window.location.pathname
+                            + "?"
+                            + searchParams.toString();
+
+                        window.history.replaceState({
+                            path: url
+                        }, "", url)
+                    }
+
+
+                },
+                error: function (xhr, err) {
+                    console.log("Status: " + xhr.status + "\nResponse Text:" + xhr.responseText);
+                }
+            });
+        }
+
+        function selectSurvey(ev) {
+            surveyNumber = ev.target.value;
+            loadContent();
+        }
+
+        function selectYear(ev) {
+            year = +ev.target.value;
+            loadContent();
+
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+        }
+
+        function updateURLParameter(url, param, paramVal) {
+            let TheAnchor = null;
+            let newAdditionalURL = "";
+            let tempArray = url.split("?");
+            let baseURL = tempArray[0];
+            let additionalURL = tempArray[1];
+            let temp = "";
+
+            if (additionalURL) {
+                var tmpAnchor = additionalURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+                if (TheAnchor)
+                    additionalURL = TheParams;
+
+                tempArray = additionalURL.split("&");
+
+                for (var i = 0; i < tempArray.length; i++) {
+                    if (tempArray[i].split('=')[0] != param) {
+                        newAdditionalURL += temp + tempArray[i];
+                        temp = "&";
+                    }
+                }
+            }
+            else {
+                var tmpAnchor = baseURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+
+                if (TheParams)
+                    baseURL = TheParams;
+            }
+
+            if (TheAnchor)
+                paramVal += "#" + TheAnchor;
+
+            var rows_txt = temp + "" + param + "=" + paramVal;
+            return baseURL + "?" + newAdditionalURL + rows_txt;
+        }
+
+        
+
+        $(document).ready(function () {
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+            loadContent();
+        });
+
+        function printPage() {
+            window.print();
+        }
+    </script>
+<link data-year="2006" href="styles/facsimile.css" rel="stylesheet" type="text/css"/></head>
+<body>
+<div class="page-header-wrapper" style="background-color: #eee; padding: 18px 6px;">
+<div class="page-header" style="width: 90%; margin: 0 auto;">
+<div style="display: flex; align-items: center!important;">
+<div class="mr-4">Reported Data: Fisk University </div>
+<div class="mr-4">|</div>
+<div class="mr-2">Select year:</div>
+<div class="mr-4">
+<select onchange="selectYear(event)">
+<option value="2022">2022</option>
+<option value="2021">2021</option>
+<option value="2020">2020</option>
+<option selected="" value="2019">2019</option>
+<option value="2018">2018</option>
+<option value="2017">2017</option>
+<option value="2016">2016</option>
+<option value="2015">2015</option>
+<option value="2014">2014</option>
+<option value="2013">2013</option>
+<option value="2012">2012</option>
+<option value="2011">2011</option>
+<option value="2010">2010</option>
+<option value="2009">2009</option>
+<option value="2008">2008</option>
+<option value="2007">2007</option>
+<option value="2006">2006</option>
+<option value="2005">2005</option>
+<option value="2004">2004</option>
+<option value="2003">2003</option>
+<option value="2002">2002</option>
+<option value="2001">2001</option>
+</select>
+</div>
+<div class="mr-2">Select survey:</div>
+<div class="mr-2">
+<select id="select-surveys" onchange="selectSurvey(event)">
+<option value="1">Institutional Characteristics</option>
+<option value="12">Admissions and Test Scores</option>
+<option selected="" value="15">Fall Enrollment</option>
+<option value="14">12-Month Enrollment</option>
+<option value="3">Completions</option>
+<option value="8">Graduation Rates</option>
+<option value="22">GR200</option>
+<option value="18">Outcome Measures</option>
+<option value="7">Student Financial Aid and Net Price</option>
+<option value="6">Finance</option>
+<option value="9">Human Resources</option>
+<option value="16">Academic Libraries</option>
+</select>
+</div>
+<div style="flex: 1 1 auto!important;"> </div>
+<div>
+<button class="mr-4 btn">
+<img onclick="printPage()" src="images/printer-svgrepo-com.svg" style="width: 15px"/>
+</button>
+<a href="Facsimile.aspx?unitId=220181">
+<img src="images/icon_close.svg" style="width: 25px"/>
+</a>
+</div>
+</div>
+</div>
+</div>
+<a id="top"></a>
+<form action="./facsimileView.aspx?unitid=220181&amp;surveynumber=15&amp;year=2019&amp;goToReportId=6" id="form1" method="post" name="form1">
+<div>
+<input id="__VIEWSTATE" name="__VIEWSTATE" type="hidden" value="/wEPDwUJNDk4MDAyNjQ0ZGQ1Rt5I0VdqjyBZxpj37FRHeGkbkoRpCmohM64NK8Nn3w=="/>
+</div>
+<div>
+<input id="__VIEWSTATEGENERATOR" name="__VIEWSTATEGENERATOR" type="hidden" value="3C3AC055"/>
+</div>
+<div style="width: 1000px; margin: 0 auto;">
+<div class="note-message show" id="data-not-revised-note">Note: Institution did NOT submit revisions through the Prior Year Data Revision System for selected collection year and survey.</div>
+<div class="note-message" id="data-revised-note">Note: Reported data includes revisions made through the Prior Year Data Revision System for  selected collection year and survey.</div>
+<div class="note-message" id="pre-2014-data-not-revised-note">Note: Reported data do not include revisions made through the Prior Year Data Revision System for any institution prior to collection year 2014.</div>
+<div class="note-message" id="latest-year-data-not-revised-note">Note: Revisions made through the Prior Year Data Revision System are not available for the selected collection year.</div>
+<div class="no-survey-found">
+                Please select survey from dropdown above
+            </div>
+<div id="survey_content"><div class="facsimile_assets"><table border="0" cellpadding="0" cellspacing="0" id="Table3" width="650">
+<tbody><tr>
+<td align="left">
+<table border="0" cellpadding="0" cellspacing="0" id="tblHeader" width="650">
+<tbody><tr>
+<td colspan="2" style="line-height:20px; height:20px; vertical-align:middle;">
+<div align="center" class="pagetitle" style="height:100%; padding-top:10px;">
+<span id="lblSurveyName">Fall Enrollment 2019</span>
+</div>
+<br/>
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part Selection</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3">Completion of Part C (Residence of First-Time Degree/Certificate-Seeking Undergraduates) is optional this year.<br/><br/>Do you wish to complete Part C this year?<br/>If you select 'Yes', you will be expected to complete the Part C screens.<br/>If you select 'No', you will skip Part C.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_on.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">No, I will not complete Part C                                                            </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">  </td><td class="sc-tb-r" nowrap="true"> <img name="2" src="images/viewonly/radio_off.gif" style="border: none"/>
+				 </td><td class="sc-tb-l">Yes, I will complete Part C                                                                      </td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part A - Fall Enrollment for Full-Time Undergraduate Students</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="7">Enrollment as of the institution's <a href="javascript:openglossary(431)">official fall reporting date</a> or as of October 15, 2019<br/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="7"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="7"><b><a href="javascript:openglossary(259)">Full-time</a> <a href="javascript:openglossary(677)">Undergraduate</a> Students</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="7">Reporting Reminders:<div style="padding-left:20px;"><li class="sc-tb-sub-header_bullet">Report Hispanic/Latino individuals of any race as Hispanic/Latino</li><li class="sc-tb-sub-header_bullet">Report race for non-Hispanic/Latino individuals only</li><li class="sc-tb-sub-header_bullet">Even though Teacher Preparation certificate programs may require a bachelor's degree for admission, they are considered subbaccalaureate undergraduate programs, and students in these programs are undergraduate students.</li></div></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="7"><b>Men</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" rowspan="2">Enrolled for <a href="javascript:openglossary(151)">credit</a></td><td class="sc-tb-c" colspan="4"><a href="javascript:openglossary(171)">Degree/certificate-seeking</a></td><td class="sc-tb-c" rowspan="2">Non-degree/<br/>non-certificate-seeking</td><td class="sc-tb-c" rowspan="2">Total,<br/> <b><a href="javascript:openglossary(259)">Full-time</a><br/> <a href="javascript:openglossary(677)">undergraduate</a><br/> students</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"><a href="javascript:openglossary(241)">First-time</a></td><td class="sc-tb-c"><a href="javascript:openglossary(653)">Transfer-in</a></td><td class="sc-tb-c"><a href="javascript:openglossary(1041)" style="color:Black">Continuing/<br/>Returning</a></td><td class="sc-tb-c">Total degree/certificate-seeking</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5769" name="tb_f5769" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">9</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f14767" name="tb_f14767" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5770" name="tb_f5770" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">20</span></td><td class="sc-s sc-tb-r" nowrap="true"> 29</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5772" name="tb_f5772" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 29</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600001" name="tb_f600001" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600021" name="tb_f600021" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600039" name="tb_f600039" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600075" name="tb_f600075" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600002" name="tb_f600002" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600022" name="tb_f600022" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600040" name="tb_f600040" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600076" name="tb_f600076" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600003" name="tb_f600003" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600023" name="tb_f600023" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600041" name="tb_f600041" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600077" name="tb_f600077" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600004" name="tb_f600004" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">67</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600024" name="tb_f600024" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600042" name="tb_f600042" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">122</span></td><td class="sc-s sc-tb-r" nowrap="true"> 192</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600078" name="tb_f600078" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 192</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600005" name="tb_f600005" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600025" name="tb_f600025" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600043" name="tb_f600043" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600079" name="tb_f600079" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600006" name="tb_f600006" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600026" name="tb_f600026" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600044" name="tb_f600044" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600080" name="tb_f600080" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600007" name="tb_f600007" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600027" name="tb_f600027" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600045" name="tb_f600045" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3</span></td><td class="sc-s sc-tb-r" nowrap="true"> 5</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600081" name="tb_f600081" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 5</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5799" name="tb_f5799" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">19</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f14773" name="tb_f14773" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5800" name="tb_f5800" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4</span></td><td class="sc-s sc-tb-r" nowrap="true"> 26</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5802" name="tb_f5802" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 26</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total men</b></td><td class="sc-s sc-tb-r" nowrap="true"> 98</td><td class="sc-s sc-tb-r" nowrap="true"> 6</td><td class="sc-s sc-tb-r" nowrap="true"> 151</td><td class="sc-s sc-tb-r" nowrap="true"> 255</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 255</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total men prior year</td><td class="sc-dbcalc-f-py sc-tb-r"> 81</td><td class="sc-dbcalc-f-py sc-tb-r"> 3</td><td class="sc-dbcalc-f-py sc-tb-r"> 129</td><td class="sc-dbcalc-f-py sc-tb-r"> 213</td><td class="sc-dbcalc-f-py sc-tb-r">  </td><td class="sc-dbcalc-f-py sc-tb-r"> 213</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="7"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="9"><b>Women</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" rowspan="2">Enrolled for <a href="javascript:openglossary(151)">credit</a></td><td class="sc-tb-c" colspan="4"><a href="javascript:openglossary(171)">Degree/certificate-seeking</a></td><td class="sc-tb-c" rowspan="2">Non-degree/<br/>non-certificate-seeking</td><td class="sc-tb-c" rowspan="2">Total,<br/> <b><a href="javascript:openglossary(259)">Full-time</a><br/> <a href="javascript:openglossary(677)">undergraduate</a><br/> students</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><a href="javascript:openglossary(241)">First-time</a></td><td class="sc-tb-c"><a href="javascript:openglossary(653)">Transfer-in</a></td><td class="sc-tb-c"><a href="javascript:openglossary(1041)" style="color:Black">Continuing/<br/>Returning</a></td><td class="sc-tb-c">Total degree/certificate-seeking</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5809" name="tb_f5809" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">7</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f14775" name="tb_f14775" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5810" name="tb_f5810" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">11</span></td><td class="sc-s sc-tb-r" nowrap="true"> 18</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5812" name="tb_f5812" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 18</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600010" name="tb_f600010" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600030" name="tb_f600030" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600048" name="tb_f600048" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5</span></td><td class="sc-s sc-tb-r" nowrap="true"> 8</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600084" name="tb_f600084" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 8</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600011" name="tb_f600011" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600031" name="tb_f600031" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600049" name="tb_f600049" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600085" name="tb_f600085" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600012" name="tb_f600012" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600032" name="tb_f600032" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600050" name="tb_f600050" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600086" name="tb_f600086" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600013" name="tb_f600013" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">202</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600033" name="tb_f600033" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">10</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600051" name="tb_f600051" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">289</span></td><td class="sc-s sc-tb-r" nowrap="true"> 501</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600087" name="tb_f600087" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 501</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600014" name="tb_f600014" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600034" name="tb_f600034" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600052" name="tb_f600052" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600088" name="tb_f600088" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600015" name="tb_f600015" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600035" name="tb_f600035" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600053" name="tb_f600053" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600089" name="tb_f600089" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 3</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600016" name="tb_f600016" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600036" name="tb_f600036" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600054" name="tb_f600054" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">6</span></td><td class="sc-s sc-tb-r" nowrap="true"> 9</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600090" name="tb_f600090" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 9</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5839" name="tb_f5839" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">9</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f14781" name="tb_f14781" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5840" name="tb_f5840" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">12</span></td><td class="sc-s sc-tb-r" nowrap="true"> 26</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5842" name="tb_f5842" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 26</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l"><b>Total women</b></td><td class="sc-s sc-tb-r" nowrap="true"> 226</td><td class="sc-s sc-tb-r" nowrap="true"> 15</td><td class="sc-s sc-tb-r" nowrap="true"> 326</td><td class="sc-s sc-tb-r" nowrap="true"> 567</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 567</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total women prior year</td><td class="sc-dbcalc-f-py sc-tb-r"> 193</td><td class="sc-dbcalc-f-py sc-tb-r"> 7</td><td class="sc-dbcalc-f-py sc-tb-r"> 303</td><td class="sc-dbcalc-f-py sc-tb-r"> 503</td><td class="sc-dbcalc-f-py sc-tb-r">  </td><td class="sc-dbcalc-f-py sc-tb-r"> 503</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="7"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><b>Grand total (men+women)</b></td><td class="sc-s sc-tb-r" nowrap="true"> 324</td><td class="sc-s sc-tb-r" nowrap="true"> 21</td><td class="sc-s sc-tb-r" nowrap="true"> 477</td><td class="sc-s sc-tb-r" nowrap="true"> 822</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 822</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Grand total (men+women) prior year</td><td class="sc-dbcalc-f-py sc-tb-r"> 274</td><td class="sc-dbcalc-f-py sc-tb-r"> 10</td><td class="sc-dbcalc-f-py sc-tb-r"> 432</td><td class="sc-dbcalc-f-py sc-tb-r"> 716</td><td class="sc-dbcalc-f-py sc-tb-r">  </td><td class="sc-dbcalc-f-py sc-tb-r"> 716</td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part A - Fall Enrollment for Part-time Undergraduate Students</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="7">Enrollment as of the institution's <a href="javascript:openglossary(431)">official fall reporting date</a> or as of October 15, 2019<br/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="7"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="7"><b><a href="javascript:openglossary(469)">Part-time</a> <a href="javascript:openglossary(677)">Undergraduate</a> Students</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="7">Reporting Reminders:<div style="padding-left:20px;"><li class="sc-tb-sub-header_bullet">Report Hispanic/Latino individuals of any race as Hispanic/Latino</li><li class="sc-tb-sub-header_bullet">Report race for non-Hispanic/Latino individuals only</li><li class="sc-tb-sub-header_bullet">Even though Teacher Preparation certificate programs may require a bachelor's degree for admission, they are considered subbaccalaureate undergraduate programs, and students in these programs are undergraduate students.</li></div></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="7"><b>Men</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" rowspan="2">Enrolled for <a href="javascript:openglossary(151)">credit</a></td><td class="sc-tb-c" colspan="4"><a href="javascript:openglossary(171)">Degree/certificate-seeking</a></td><td class="sc-tb-c" rowspan="2">Non-degree/<br/>non-certificate-seeking</td><td class="sc-tb-c" rowspan="2">Total,  <br/><a href="javascript:openglossary(469)">part-time<br/></a><a href="javascript:openglossary(677)">undergraduate</a> <br/>students</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"><a href="javascript:openglossary(241)">First-time</a></td><td class="sc-tb-c"><a href="javascript:openglossary(653)">Transfer-in</a></td><td class="sc-tb-c"><a href="javascript:openglossary(1041)" style="color:Black">Continuing/<br/>Returning</a></td><td class="sc-tb-c">Total degree/certificate-seeking</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5849" name="tb_f5849" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f14783" name="tb_f14783" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5850" name="tb_f5850" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5852" name="tb_f5852" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600111" name="tb_f600111" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600129" name="tb_f600129" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600147" name="tb_f600147" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600183" name="tb_f600183" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600112" name="tb_f600112" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600130" name="tb_f600130" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600148" name="tb_f600148" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600184" name="tb_f600184" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600113" name="tb_f600113" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600131" name="tb_f600131" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600149" name="tb_f600149" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600185" name="tb_f600185" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600114" name="tb_f600114" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600132" name="tb_f600132" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600150" name="tb_f600150" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5</span></td><td class="sc-s sc-tb-r" nowrap="true"> 7</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600186" name="tb_f600186" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 7</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600115" name="tb_f600115" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600133" name="tb_f600133" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600151" name="tb_f600151" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600187" name="tb_f600187" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600116" name="tb_f600116" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600134" name="tb_f600134" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600152" name="tb_f600152" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600188" name="tb_f600188" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600117" name="tb_f600117" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600135" name="tb_f600135" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600153" name="tb_f600153" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600189" name="tb_f600189" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5879" name="tb_f5879" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f14789" name="tb_f14789" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5880" name="tb_f5880" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5882" name="tb_f5882" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total men</b></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 6</td><td class="sc-s sc-tb-r" nowrap="true"> 8</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 8</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total men prior year</td><td class="sc-dbcalc-f-py sc-tb-r"> 1</td><td class="sc-dbcalc-f-py sc-tb-r">  </td><td class="sc-dbcalc-f-py sc-tb-r"> 10</td><td class="sc-dbcalc-f-py sc-tb-r"> 11</td><td class="sc-dbcalc-f-py sc-tb-r">  </td><td class="sc-dbcalc-f-py sc-tb-r"> 11</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="7"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="9"><b>Women</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" rowspan="2">Enrolled for <a href="javascript:openglossary(151)">credit</a></td><td class="sc-tb-c" colspan="4"><a href="javascript:openglossary(171)">Degree/certificate-seeking</a></td><td class="sc-tb-c" rowspan="2">Non-degree/<br/>non-certificate-seeking</td><td class="sc-tb-c" rowspan="2">Total,  <br/><a href="javascript:openglossary(469)">part-time<br/></a><a href="javascript:openglossary(677)">undergraduate</a> <br/>students</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><a href="javascript:openglossary(241)">First-time</a></td><td class="sc-tb-c"><a href="javascript:openglossary(653)">Transfer-in</a></td><td class="sc-tb-c"><a href="javascript:openglossary(1041)" style="color:Black">Continuing/<br/>Returning</a></td><td class="sc-tb-c">Total degree/certificate-seeking</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5889" name="tb_f5889" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f14791" name="tb_f14791" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5890" name="tb_f5890" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5892" name="tb_f5892" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600120" name="tb_f600120" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600138" name="tb_f600138" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600156" name="tb_f600156" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600192" name="tb_f600192" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600121" name="tb_f600121" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600139" name="tb_f600139" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600157" name="tb_f600157" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600193" name="tb_f600193" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600122" name="tb_f600122" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600140" name="tb_f600140" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600158" name="tb_f600158" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600194" name="tb_f600194" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600123" name="tb_f600123" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600141" name="tb_f600141" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600159" name="tb_f600159" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">6</span></td><td class="sc-s sc-tb-r" nowrap="true"> 7</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600195" name="tb_f600195" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 7</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600124" name="tb_f600124" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600142" name="tb_f600142" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600160" name="tb_f600160" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600196" name="tb_f600196" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600125" name="tb_f600125" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600143" name="tb_f600143" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600161" name="tb_f600161" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600197" name="tb_f600197" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600126" name="tb_f600126" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600144" name="tb_f600144" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600162" name="tb_f600162" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600198" name="tb_f600198" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5919" name="tb_f5919" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f14797" name="tb_f14797" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5920" name="tb_f5920" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5922" name="tb_f5922" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l"><b>Total women</b></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 9</td><td class="sc-s sc-tb-r" nowrap="true"> 10</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 10</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total women prior year</td><td class="sc-dbcalc-f-py sc-tb-r"> 3</td><td class="sc-dbcalc-f-py sc-tb-r">  </td><td class="sc-dbcalc-f-py sc-tb-r"> 13</td><td class="sc-dbcalc-f-py sc-tb-r"> 16</td><td class="sc-dbcalc-f-py sc-tb-r">  </td><td class="sc-dbcalc-f-py sc-tb-r"> 16</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="7"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Grand total (men+women)</b></td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 15</td><td class="sc-s sc-tb-r" nowrap="true"> 18</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 18</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Grand total (men+women) prior year</td><td class="sc-dbcalc-f-py sc-tb-r"> 4</td><td class="sc-dbcalc-f-py sc-tb-r">  </td><td class="sc-dbcalc-f-py sc-tb-r"> 23</td><td class="sc-dbcalc-f-py sc-tb-r"> 27</td><td class="sc-dbcalc-f-py sc-tb-r">  </td><td class="sc-dbcalc-f-py sc-tb-r"> 27</td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part A - Fall Enrollment for Graduate Students</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="4">Enrollment as of the institution's <a href="javascript:openglossary(431)">official fall reporting date</a> or as of October 15, 2019<br/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="4"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="4"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="4"><b><a href="javascript:openglossary(275)">Graduate Students</a></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="4">Race/Ethnicity Reporting Reminder:<div style="padding-left:20px;"><li class="sc-tb-sub-header_bullet">Report Hispanic/Latino individuals of any race as Hispanic/Latino</li><li class="sc-tb-sub-header_bullet">Report race for non-Hispanic/Latino individuals only</li></div><br/>Graduate Student Reporting Reminder:<div style="padding-left:20px;"><li class="sc-tb-sub-header_bullet">Report <u>all</u> postbaccalaureate degree and certificate students as graduate students, including any doctor's-professional practice students (formerly first-professional)</li><li class="sc-tb-sub-header_bullet">Even though Teacher Preparation certificate programs may require a bachelor's degree for admission, they are considered subbaccalaureate undergraduate programs, and students in these programs are undergraduate students.</li></div></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="4"><b>Men</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Enrolled for <a href="javascript:openglossary(151)">credit</a></td><td class="sc-tb-c">Total <a href="javascript:openglossary(259)">full-time</a></td><td class="sc-tb-c">Total <a href="javascript:openglossary(469)">part-time</a></td><td class="sc-tb-c">Total graduate students</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5929" name="tb_f5929" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5930" name="tb_f5930" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600219" name="tb_f600219" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600237" name="tb_f600237" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600220" name="tb_f600220" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600238" name="tb_f600238" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600221" name="tb_f600221" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600239" name="tb_f600239" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600222" name="tb_f600222" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">6</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600240" name="tb_f600240" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 6</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600223" name="tb_f600223" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600241" name="tb_f600241" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600224" name="tb_f600224" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600242" name="tb_f600242" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600225" name="tb_f600225" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600243" name="tb_f600243" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5941" name="tb_f5941" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5942" name="tb_f5942" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-s sc-tb-r" nowrap="true"> 4</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total men</b></td><td class="sc-s sc-tb-r" nowrap="true"> 10</td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 11</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total men prior year</td><td class="sc-dbcalc-f-py sc-tb-r"> 10</td><td class="sc-dbcalc-f-py sc-tb-r"> 1</td><td class="sc-dbcalc-f-py sc-tb-r"> 11</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="4"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="9"><b>Women</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Enrolled for <a href="javascript:openglossary(151)">credit</a></td><td class="sc-tb-c">Total <a href="javascript:openglossary(259)">full-time</a></td><td class="sc-tb-c">Total <a href="javascript:openglossary(469)">part-time</a></td><td class="sc-tb-c">Total graduate students</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5945" name="tb_f5945" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5946" name="tb_f5946" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600228" name="tb_f600228" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600246" name="tb_f600246" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 3</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600229" name="tb_f600229" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600247" name="tb_f600247" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600230" name="tb_f600230" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600248" name="tb_f600248" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600231" name="tb_f600231" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600249" name="tb_f600249" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">6</span></td><td class="sc-s sc-tb-r" nowrap="true"> 10</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600232" name="tb_f600232" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600250" name="tb_f600250" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600233" name="tb_f600233" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600251" name="tb_f600251" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Two or more races</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600234" name="tb_f600234" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f600252" name="tb_f600252" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5957" name="tb_f5957" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">6</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f5958" name="tb_f5958" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-s sc-tb-r" nowrap="true"> 7</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l"><b>Total women</b></td><td class="sc-s sc-tb-r" nowrap="true"> 16</td><td class="sc-s sc-tb-r" nowrap="true"> 7</td><td class="sc-s sc-tb-r" nowrap="true"> 23</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total women prior year</td><td class="sc-dbcalc-f-py sc-tb-r"> 23</td><td class="sc-dbcalc-f-py sc-tb-r"> 3</td><td class="sc-dbcalc-f-py sc-tb-r"> 26</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="4"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l"><b>Grand total (men+women)</b></td><td class="sc-s sc-tb-r" nowrap="true"> 26</td><td class="sc-s sc-tb-r" nowrap="true"> 8</td><td class="sc-s sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b1a1e1e4e0e7dfe4dfb8b1abadafb0b1a1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8acaaadb1aaadabadac9bb2b5abb0b5abb49bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 34</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Grand total (men+women) prior year</td><td class="sc-dbcalc-f-py sc-tb-r"> 33</td><td class="sc-dbcalc-f-py sc-tb-r"> 4</td><td class="sc-dbcalc-f-py sc-tb-r"> 37</td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part A - Fall Enrollment by Distance Education Status</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="4">Enrollment as of the institution's <a href="javascript:openglossary(431)">official fall reporting date</a> or as of October 15, 2019<br/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c" colspan="2"><b><a href="javascript:openglossary(677)">Undergraduate</a> Students</b></td><td class="sc-tb-c" rowspan="2"><a href="javascript:openglossary(275)" style="color:Black"><b>Graduate Students</b></a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"><a href="javascript:openglossary(171)" style="color:Black">Degree/certificate-seeking</a></td><td class="sc-tb-c">Non-degree/non-certificate-seeking</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><img id="screenTip_40" src="images/icon_tip.gif" style="border:none; vertical-align:top;"/> <b>Enrolled</b> <i>exclusively</i> <b>in <a href="javascript:openglossary(976)"> distance education courses</a></b></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f650401" name="tb_f650401" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f650405" name="tb_f650405" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f650409" name="tb_f650409" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><b>Enrolled</b> in <i> at least one </i> <b>but not all distance education courses</b></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f650402" name="tb_f650402" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f650406" name="tb_f650406" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f650410" name="tb_f650410" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><i>Not enrolled </i><b>in any distance education courses</b></td><td class="sc-s sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b1a1e1e4e0e7dfe4dfb8b1b0abafabaea1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8acaaadb1aaadabadac9bb2b5abb0b5abb49bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 840</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 34</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td><td class="sc-tb-r"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b>Total</b> (from prior part A screens)<br/><blockquote style="margin: 0 0 0 30px; border: none; padding: 0px;"><br/></blockquote></td><td class="sc-s sc-tb-r"> 840</td><td class="sc-s sc-tb-r"> 0</td><td class="sc-s sc-tb-r"> 34</td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3"><img alt="These context notes may be posted on the College Navigator." src="images/icon_navigator.gif" style="border:none"/> You may use the space below to <b>provide context</b> for the data you've reported above.  <br/>These context notes may be posted on the College Navigator website, and should be written to be understood by students and parents.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3" nowrap="true"> <textarea cols="54" id="cvt_f650440" name="cvt_f650440" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part A - Fall Enrollment Summary</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="5"><b>Fall Enrollment Summary</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="5"><b>Men</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2">Students enrolled for credit</td><td class="sc-tb-c">Total full-time <br/>students</td><td class="sc-tb-c">Total part-time <br/>students</td><td class="sc-tb-c">Grand total,<br/> all students</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-s sc-tb-r" nowrap="true"> 29</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 29</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 1</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-s sc-tb-r" nowrap="true"> 198</td><td class="sc-s sc-tb-r" nowrap="true"> 7</td><td class="sc-s sc-tb-r" nowrap="true"> 205</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 2</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2">Two or more races</td><td class="sc-s sc-tb-r" nowrap="true"> 5</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 5</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-s sc-tb-r" nowrap="true"> 29</td><td class="sc-s sc-tb-r" nowrap="true"> 2</td><td class="sc-s sc-tb-r" nowrap="true"> 31</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l" colspan="2"><b>Total men</b></td><td class="sc-s sc-tb-r" nowrap="true"> 265</td><td class="sc-s sc-tb-r" nowrap="true"> 9</td><td class="sc-s sc-tb-r" nowrap="true"> 274</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="5"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="5"><b>Women</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2">Students enrolled for credit</td><td class="sc-tb-c">Total full-time <br/>students</td><td class="sc-tb-c">Total part-time <br/>students</td><td class="sc-tb-c">Grand total,<br/> all students</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-s sc-tb-r" nowrap="true"> 19</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 19</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(909)" style="color:Black">Hispanic/Latino</a></td><td class="sc-s sc-tb-r" nowrap="true"> 11</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 11</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(907)" style="color:Black">American Indian or Alaska Native</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(908)" style="color:Black">Asian</a></td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 3</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(906)" style="color:Black">Black or African American</a></td><td class="sc-s sc-tb-r" nowrap="true"> 505</td><td class="sc-s sc-tb-r" nowrap="true"> 13</td><td class="sc-s sc-tb-r" nowrap="true"> 518</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(910)" style="color:Black">Native Hawaiian or Other Pacific Islander</a></td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(911)" style="color:Black">White</a></td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="2">Two or more races</td><td class="sc-s sc-tb-r" nowrap="true"> 9</td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 10</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2"><a href="javascript:openglossary(543)" style="color:Black">Race and ethnicity unknown</a></td><td class="sc-s sc-tb-r" nowrap="true"> 32</td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 35</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l" colspan="2"><b>Total women</b></td><td class="sc-s sc-tb-r" nowrap="true"> 583</td><td class="sc-s sc-tb-r" nowrap="true"> 17</td><td class="sc-s sc-tb-r" nowrap="true"> 600</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="5"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l" colspan="2"><b>Grand Total (men+women)</b></td><td class="sc-s sc-tb-r" nowrap="true"> 848</td><td class="sc-s sc-tb-r" nowrap="true"> 26</td><td class="sc-s sc-tb-r" nowrap="true"> 874</td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part B - Fall Enrollment by Age and Gender for Full-time Undergraduate Students</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="3">Enrollment as of the institution's <a href="javascript:openglossary(431)">official fall reporting date</a> or as of October 15, 2019</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><b>Age</b></td><td class="sc-tb-c" colspan="2"><b><a href="javascript:openglossary(259)">Full-time</a> <a href="javascript:openglossary(677)">Undergraduate</a> Students</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">Men</td><td class="sc-tb-c">Women</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">Under 18</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6041" name="tb_f6041" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6042" name="tb_f6042" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">18-19</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6043" name="tb_f6043" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">63</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6044" name="tb_f6044" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">165</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">20-21</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6045" name="tb_f6045" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">115</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6046" name="tb_f6046" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">276</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">22-24</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6047" name="tb_f6047" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">63</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6048" name="tb_f6048" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">110</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">25-29</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6049" name="tb_f6049" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">9</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6050" name="tb_f6050" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">7</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">30-34</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6051" name="tb_f6051" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6052" name="tb_f6052" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">35-39</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6053" name="tb_f6053" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6054" name="tb_f6054" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">40-49</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6055" name="tb_f6055" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6056" name="tb_f6056" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">50-64</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6057" name="tb_f6057" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6058" name="tb_f6058" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">65 and over</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6059" name="tb_f6059" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6060" name="tb_f6060" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">Age unknown/unreported</td><td class="sc-s sc-tb-r" nowrap="true"> 3</td><td class="sc-s sc-tb-r" nowrap="true"> 5</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">Total full-time undergraduate students (from part A)</td><td class="sc-tb-r"> 255</td><td class="sc-tb-r"> 567</td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part B - Fall Enrollment by Age and Gender for Part-time Undergraduate Students</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="3">Enrollment as of the institution's <a href="javascript:openglossary(431)">official fall reporting date</a> or as of October 15, 2019</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><b>Age</b></td><td class="sc-tb-c" colspan="2"><b><a href="javascript:openglossary(469)">Part-time</a> <a href="javascript:openglossary(677)">Undergraduate</a> Students</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">Men</td><td class="sc-tb-c">Women</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">Under 18</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6063" name="tb_f6063" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6064" name="tb_f6064" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">18-19</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6065" name="tb_f6065" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6066" name="tb_f6066" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">20-21</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6067" name="tb_f6067" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6068" name="tb_f6068" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">22-24</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6069" name="tb_f6069" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6070" name="tb_f6070" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">25-29</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6071" name="tb_f6071" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6072" name="tb_f6072" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">30-34</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6073" name="tb_f6073" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6074" name="tb_f6074" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">35-39</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6075" name="tb_f6075" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6076" name="tb_f6076" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">40-49</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6077" name="tb_f6077" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6078" name="tb_f6078" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">50-64</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6079" name="tb_f6079" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6080" name="tb_f6080" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">65 and over</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6081" name="tb_f6081" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6082" name="tb_f6082" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">Age unknown/unreported</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">Total part-time undergraduate students (from part A)</td><td class="sc-tb-r"> 8</td><td class="sc-tb-r"> 10</td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part B - Fall Enrollment by Age and Gender for Full-time Graduate Students</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="3">Enrollment as of the institution's <a href="javascript:openglossary(431)">official fall reporting date</a> or as of October 15, 2019</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><b>Age</b></td><td class="sc-tb-c" colspan="2"><b><a href="javascript:openglossary(259)">Full-time</a> <a href="javascript:openglossary(275)">Graduate Students</a></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">Men</td><td class="sc-tb-c">Women</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">Under 18</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6085" name="tb_f6085" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6086" name="tb_f6086" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">18-19</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6087" name="tb_f6087" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6088" name="tb_f6088" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">20-21</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6089" name="tb_f6089" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6090" name="tb_f6090" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">22-24</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6091" name="tb_f6091" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6092" name="tb_f6092" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">25-29</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6093" name="tb_f6093" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6094" name="tb_f6094" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">5</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">30-34</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6095" name="tb_f6095" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6096" name="tb_f6096" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">35-39</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6097" name="tb_f6097" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6098" name="tb_f6098" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">40-49</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6099" name="tb_f6099" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6100" name="tb_f6100" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">50-64</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6101" name="tb_f6101" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6102" name="tb_f6102" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">65 and over</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6103" name="tb_f6103" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6104" name="tb_f6104" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">Age unknown/unreported</td><td class="sc-s sc-tb-r" nowrap="true"> 1</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">Total full-time graduate students (from part A)</td><td class="sc-tb-r"> 10</td><td class="sc-tb-r"> 16</td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part B - Fall Enrollment by Age and Gender for Part-time Graduate Students</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="3">Enrollment as of the institution's <a href="javascript:openglossary(431)">official fall reporting date</a> or as of October 15, 2019</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"><b>Age</b></td><td class="sc-tb-c" colspan="2"><b><a href="javascript:openglossary(469)">Part-time</a> <a href="javascript:openglossary(275)">Graduate Students</a></b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">Men</td><td class="sc-tb-c">Women</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">Under 18</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6107" name="tb_f6107" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6108" name="tb_f6108" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">18-19</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6109" name="tb_f6109" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6110" name="tb_f6110" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">20-21</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6111" name="tb_f6111" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6112" name="tb_f6112" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">22-24</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6113" name="tb_f6113" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6114" name="tb_f6114" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">25-29</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6115" name="tb_f6115" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6116" name="tb_f6116" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">3</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">30-34</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6117" name="tb_f6117" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6118" name="tb_f6118" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">35-39</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6119" name="tb_f6119" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6120" name="tb_f6120" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">2</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">40-49</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6121" name="tb_f6121" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6122" name="tb_f6122" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">50-64</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6123" name="tb_f6123" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6124" name="tb_f6124" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">65 and over</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6125" name="tb_f6125" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f6126" name="tb_f6126" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">Age unknown/unreported</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">Total part-time graduate students (from part A)</td><td class="sc-tb-r"> 1</td><td class="sc-tb-r"> 7</td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part D - Total Undergraduate Entering Class</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="3"><b>Total Undergraduate Entering Class, Fall 2019</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">D1</td><td class="sc-tb-l">Total full-time, first-time degree/certificate-seeking <a href="javascript:openglossary(677)">undergraduates</a> from Part A (GR <a href="javascript:openglossary(119)">cohort</a>)</td><td class="sc-tb-r"> 324</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">D2</td><td class="sc-tb-l">Total <a href="javascript:openglossary(241)">first-time</a> degree/certificate-seeking undergraduates (full-time + part-time) from Part A</td><td class="sc-s sc-tb-r" nowrap="true"> 327</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">D3</td><td class="sc-tb-l">Total <a href="javascript:openglossary(653)">transfer-in</a> degree/certificate-seeking undergraduates (full-time + part-time) from Part A</td><td class="sc-s sc-tb-r" nowrap="true"> 21</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">D4</td><td class="sc-tb-l">Total <a href="javascript:openglossary(413)">non-degree/non-certificate-seeking</a> undergraduates (full-time + part-time) from Part A</td><td class="sc-s sc-tb-r" nowrap="true"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">D5</td><td class="sc-tb-l">Of the total non-degree/non-certificate-seeking undergraduates displayed on line D4, <strong>the number that are new to the institution in Fall 2019</strong></td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f602465" name="tb_f602465" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c">D6</td><td class="sc-tb-l">Total <a href="javascript:openglossary(700)">entering students</a> at the undergraduate level<br/><b>Note:</b> This is calculated as first-time students (line D2) + students transferring to the institution (line D3) + non-degree/non-certificate-seeking undergraduates entering in Fall 2019 (line D5).</td><td class="sc-s sc-tb-r" nowrap="true"> 348</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c">D7</td><td class="sc-tb-l">Percentage of undergraduate entering class represented by your GR <a href="javascript:openglossary(119)">cohort</a> (line D1/line D6)</td><td class="sc-s sc-tb-r" nowrap="true"> 93</td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part E - First-time Bachelor's Cohort Retention Rates (Full-time)</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="5"><a href="javascript:openglossary(772)">Retention Rates</a><br/>Full-time, First-time Bachelor's Cohort from Fall 2018<br/><br/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="5">Academic reporters determine the cohort and retention as of the institution's official fall reporting date or as of October 15. Program reporters determine the cohort with enrollment any time between August 1 and October 31, 2018 and retention based on August 1, 2019.<br/><br/>The retention rate is calculated by the system after clicking "Save" on the screen. Exclusions are subtracted from and inclusions are added to the original cohort and the resulting adjusted cohort is used for calculating the retention rate.<br/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5"><b>Retention Data Reporting Reminders:</b> <ul> <li style="font-family:Arial;font-size:12px;">Include only <b>full-time, first-time bachelor's</b> students in this cohort.</li> <li style="font-family:Arial;font-size:12px;">Determine the full-time cohort using Fall 2018 status (e.g., if a student was full-time in Fall 2018, report them in the full-time cohort regardless of their Fall 2019 status).</li> <li style="font-family:Arial;font-size:12px;">If there are no students to report in the cohort, enter zero. Do not leave the field blank.</li></ul> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5"><ul><li style="font-family:Arial;font-size:12px;">Report in the exclusions box (line E2a) the number of students from the cohort who left the institution for any of the following reasons: died or were totally and permanently disabled; to serve in the armed forces (including those called to active duty); to serve with a foreign aid service of the Federal Government (e.g., Peace Corps); or to serve on official church missions.</li><li style="font-family:Arial;font-size:12px;">Report in the inclusion box (line E2b) first-time bachelor’s-seeking <a href="javascript:openglossary(714)">study abroad</a> students who were excluded from the first-time cohort (line E1) but who have re-enrolled at the institution their second year.</li></ul> <br/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c" colspan="2"><br/></td><td class="sc-tb-c" colspan="2"><br/>Prior year data (Fall 2017 cohort)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5"><br/><b>FULL-TIME, FIRST-TIME BACHELOR'S COHORT RETENTION:</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b>E1</b>      Full-time, first-time Fall 2018 bachelor's cohort</td><td class="sc-tb-r" nowrap="true"><a href="javascript:openerror('ErrorCodePopUp.aspx?param=cbede0f1ceeaf0eddee0b8cea1f0e9e4efe4dfb8adadabacb3aca1eef0edf1e0f4e4dfb8b1a1e1e4e0e7dfe4dfb8acaeb4b2aca1eedeede0e0e9bfe4eeebe7dcc8eadfe0b8aea1e0ededeaedc8eee2cdeee9b8a1e0ededeaedc8eee2cbdceddce8b8a1eddfefb8acaaadb1aaadabadac9bb2b5abb0b5acab9bcbc8')" style="border: none; padding:0px"><img name="2" src="images/notice2.gif" style="border: none"/></a>
+				 <span class="sc-tbn" id="tb_f13971" name="tb_f13971" size="15" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">274</span></td><td class="sc-tb-l"> </td><td class="sc-dbcalc-f-py sc-tb-r"> 132</td><td class="sc-tb-c"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><b>E2a</b>      <a href="javascript:openglossary(207)">Exclusions</a> from the Fall 2018 cohort</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f15398" name="tb_f15398" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-l"> </td><td class="sc-dbcalc-f-py sc-tb-r"> 0</td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b>E2b</b>      Inclusion to the Fall 2018 cohort</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f602836" name="tb_f602836" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-l"> </td><td class="sc-dbcalc-f-py sc-tb-r"> 0</td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><b>E3</b>      <strong>Adjusted</strong> Fall 2018 cohort  (line E1- E2a + E2b)</td><td class="sc-s sc-tb-r" nowrap="true"> 274</td><td class="sc-tb-l"> </td><td class="sc-dbcalc-f-py sc-tb-r"> 132</td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b>E4</b>      Students from Fall 2018 cohort <b>still enrolled</b> as of Fall 2019</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f15400" name="tb_f15400" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">214</span></td><td class="sc-tb-l"> </td><td class="sc-dbcalc-f-py sc-tb-r"> 107</td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><b>E5</b>      Full-time, first-time Fall 2018 bachelor's cohort retention rate   (line E4 / line E3)</td><td class="sc-s sc-tb-r" nowrap="true"> 78</td><td class="sc-tb-l">%</td><td class="sc-dbcalc-f-py sc-tb-r"> 81</td><td class="sc-tb-l">%</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5"> </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3"><img alt="These context notes will be posted on the College Navigator." src="images/icon_navigator.gif" style="border:none"/> You may use the space below to <b>provide context</b> for the data you've reported above.  <br/>These context notes will be posted on the College Navigator website, and should be written to be understood by students and parents.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3" nowrap="true"> <textarea cols="54" id="cvt_f15291" name="cvt_f15291" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part E - First-time Bachelor's Cohort Retention Rates (Part-time)</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="5"><a href="javascript:openglossary(772)">Retention Rates</a><br/>Part-time, First-time Bachelor's Cohort from Fall 2018<br/><br/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="5">Academic reporters determine the cohort and retention as of the institution's official fall reporting date or as of October 15. Program reporters determine the cohort with enrollment any time between August 1 and October 31, 2018 and retention based on August 1, 2019.<br/><br/>The retention rate is calculated by the system after clicking "Save" on the screen. Exclusions are subtracted from the original cohort and the resulting adjusted cohort is used for calculating the retention rate.<br/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5"><b>Retention Data Reporting Reminders:</b> <ul> <li style="font-family: Arial; font-size: 12px;">Include only <b>part-time, first-time bachelor's-seeking</b> students in this cohort.</li> <li style="font-family: Arial; font-size: 12px;">Determine part-time using Fall 2018 attendance status (e.g., if a student was part-time in Fall 2018, report them in the part-time cohort regardless of their Fall 2019 status).</li> <li style="font-family: Arial; font-size: 12px;">If there are no students to report in the cohort, enter zero. Do not leave the field blank.</li></ul></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5"><ul><li style="font-family: Arial; font-size: 12px;">Report in the exclusions box (line E7a) the number of students from the cohort who left the institution for any of the following reasons: died or were totally and permanently disabled; to serve in the armed forces (including those called to active duty); to serve with a foreign aid service of the Federal Government (e.g., Peace Corps); or to serve on official church missions.</li><li style="font-family: Arial; font-size: 12px;">Report in the inclusion box (line E7b) first-time bachelor’s-seeking <a href="javascript:openglossary(714)">study abroad</a> students who were excluded from the first-time cohort (line E6) but who have re-enrolled at the institution their second year.</li></ul><br/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c" colspan="2"><br/></td><td class="sc-tb-c" colspan="2"><br/>Prior year data (Fall 2017 cohort)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5"><b>PART-TIME, FIRST-TIME BACHELOR'S COHORT RETENTION:</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b>E6</b>       Part-time, first-time Fall 2018 bachelor's cohort</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f13972" name="tb_f13972" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">4</span></td><td class="sc-tb-l"> </td><td class="sc-dbcalc-f-py sc-tb-r"> 3</td><td class="sc-tb-c"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><b>E7a</b>       <a href="javascript:openglossary(207)">Exclusions</a> from the Fall 2018 cohort</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f15401" name="tb_f15401" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-l"> </td><td class="sc-dbcalc-f-py sc-tb-r"> 0</td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b>E7b</b>       Inclusions to the Fall 2018 cohort</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f602837" name="tb_f602837" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">0</span></td><td class="sc-tb-l"> </td><td class="sc-dbcalc-f-py sc-tb-r"> 0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><b>E8</b>       <strong>Adjusted</strong> Fall 2018 cohort  (line E6 - E7a + E7b)</td><td class="sc-s sc-tb-r" nowrap="true"> 4</td><td class="sc-tb-l"> </td><td class="sc-dbcalc-f-py sc-tb-r"> 3</td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><b>E9</b>       Students from Fall 2018 cohort <b>still enrolled</b> as of Fall 2019</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f15403" name="tb_f15403" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">1</span></td><td class="sc-tb-l"> </td><td class="sc-dbcalc-f-py sc-tb-r"> 0</td><td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><b>E10</b>      Part-time, first-time Fall 2018 bachelor's cohort retention rate (line E9 / line E8)</td><td class="sc-s sc-tb-r" nowrap="true"> 25</td><td class="sc-tb-l">%</td><td class="sc-dbcalc-f-py sc-tb-r"> 0</td><td class="sc-tb-l">%</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5"> </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3"><img alt="These context notes will be posted on the College Navigator." src="images/icon_navigator.gif" style="border:none"/> You may use the space below to <b>provide context</b> for the data you've reported above.  <br/>These context notes will be posted on the College Navigator website, and should be written to be understood by students and parents.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="3" nowrap="true"> <textarea cols="54" id="cvt_f15681" name="cvt_f15681" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+<span></span>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Part F - Student-to-Faculty Ratio</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="4">Please provide your institution's student-to-faculty ratio (i.e., student-to-instructional staff) for undergraduate programs for Fall 2019.  The student-to-faculty ratio and any accompanying context that is provided will be displayed on College Navigator.  <br/><br/>Note:  Logic in this item is similar to item I-2 from the Common Data Set data collection.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-c" colspan="4"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" colspan="4"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" colspan="4"><br/>Click <a href="javascript:openEFworksheet(1)">here</a> to use a worksheet to help you determine the student-to-faculty ratio<br/> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"> </td><td class="sc-tb-l">Student-to-faculty ratio</td><td class="sc-tb-r" nowrap="true"> <span class="sc-tbn" id="tb_f602351" name="tb_f602351" style="width:42px;background-color:#E7EBF0;border-style:solid;border-width:1px;border-color:#7F9DB9;padding-top:1px;padding-bottom:1px;padding-left:2px;padding-right:4px;margin-top:1px;margin-bottom:1px;font-size:12px;height:14px;display:inline-block;">12</span></td><td class="sc-tb-c">to 1</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c"> </td><td class="sc-tb-l">Student-to-faculty ratio prior year</td><td class="sc-dbcalc-f-py sc-tb-r"> 12</td><td class="sc-tb-c">to 1</td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="5"><img alt="These context notes will be posted on the College Navigator." src="images/icon_navigator.gif" style="border:none"/> You may use the space below to <b>provide context</b> for the data you've reported above.  <br/>These context notes will be posted on the College Navigator website, and should be written to be understood by students and parents.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5" nowrap="true"> <textarea cols="54" id="cvt_f602357" name="cvt_f602357" readonly="readonly" rows="2" style="background-color:#E7EBF0;width:450px;height:90px;" value=""></textarea></td>
+</tr>
+</tbody></table>
+</div>
+</div><div style="display:block; page-break-before:always;"> </div>
+<div>
+<table border="0" cellpadding="4px" cellspacing="0" class="shade" width="650"><tbody><tr><td align="left" width="500">Institution: Fisk University (220181) </td><td align="right"></td></tr></tbody></table>
+</div><div style="padding:4px;width:650px;border:none;font-weight:bold;float:left">Summary</div>
+<div>
+<style type="text/css">
+    table.grid
+    {
+        border-collapse: collapse;
+        font-size: 9px;
+    }
+    table.grid td
+    {
+        border: 1px solid #c7ddea;
+        font-size: 10px;
+        padding: 4px;
+        vertical-align: top;
+    }
+    table.grid tr.alt td
+    {
+        background-color: #F3F5F7;
+    }
+    table.grid th
+    {
+        background-color: #D2DFE5;
+        border: 1px solid #c7ddea;
+        padding: 4px;
+        text-align:center;
+    }
+    td.number
+    {
+        text-align: right;
+    }
+    td.number span
+    {
+        margin-right: 10px;
+    }
+    td.numberWide
+    {
+        text-align: right;
+    }
+    td.numberWide span
+    {
+        margin-right: 320px;
+    }
+</style>
+<div style="width:650px">
+<div style="padding-top:20px; text-align:center; font-family:Verdana; font-size:14px; font-weight:bold; color:#336699;">
+        Fall Enrollment Survey Summary<br/>
+        Four-Year Institutions with Graduate Students
+    </div>
+<p id="header1">
+        IPEDS collects important information regarding your institution.  All data reported in IPEDS survey
+        components become available in the IPEDS Data Center and appear as aggregated data in various Department
+        of Education reports. Additionally, some of the reported data appears specifically for your institution
+        through the College Navigator website and is included in your institution’s Data Feedback Report (DFR).
+        The purpose of this summary is to provide you an opportunity to view some of the data that, when accepted
+        through the IPEDS quality control process, will appear on the College Navigator website and/or your DFR.
+        College Navigator is updated approximately three months after the data collection period closes and Data
+        Feedback Reports will be available through the <a href="https://nces.ed.gov/ipeds/use-the-data" target="_blank">Data Center</a> and sent to your institution’s CEO in November 2019. 
+    </p>
+<p id="header2">
+        Please review your data for accuracy.  If you have questions about the data displayed below after reviewing
+        the data reported on the survey screens, please contact the IPEDS Help Desk at: 1-877-225-2568 or
+        <a href="mailto:ipedshelp@rti.org">ipedshelp@rti.org</a>.
+    </p>
+<div id="pnl4YearWithGrad">
+<table class="grid" id="tbl4yearGradurate1" style="width:60%">
+<tbody><tr class="alt" id="Tr23">
+<td class="" colspan="2" style="vertical-align:middle;text-align:center; font-weight:bold;">Student Enrollment</td>
+</tr>
+<tr id="Tr25">
+<td class="" style="width: 80%;">Total enrollment</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT1L1">874</span></td>
+</tr>
+<tr class="alt" id="Tr30">
+<td class="" style="width: 80%; padding-left:30px;">Undergraduate enrollment</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT1L2">840</span></td>
+</tr>
+<tr id="Tr47">
+<td class="" style="width: 80%; padding-left:60px;">Undergraduate transfer-in enrollment</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT1L3">21</span></td>
+</tr>
+<tr class="alt" id="Tr48">
+<td class="" style="width: 80%; padding-left:30px;">Graduate enrollment</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT1L4">34</span></td>
+</tr>
+<tr id="Tr49">
+<td class="" colspan="2"> </td>
+</tr>
+<tr class="alt" id="Tr50">
+<td class="" style="width: 80%; ">Student-to-faculty ratio</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT1L5">12 to 1</span></td>
+</tr>
+</tbody></table>
+<br/>
+<table class="grid" id="tbl4yearGradurate2" style="width:60%">
+<tbody><tr class="alt" id="Tr2">
+<td class="" colspan="2" style="vertical-align:middle;text-align:center; font-weight:bold;">Student Characteristics (All Students)</td>
+</tr>
+<tr id="Tr6">
+<td class="" style="width: 80%; ">Percent of all students who are female</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT2L1">69%</span></td>
+</tr>
+<tr class="alt" id="Tr12">
+<td class="" colspan="2"> </td>
+</tr>
+<tr id="Tr7">
+<td class="" colspan="2">Percent of all students by race/ethnicity:</td>
+</tr>
+<tr id="Tr9">
+<td class="" style="width: 80%; padding-left:30px;">American Indian or Alaska Native</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT2L4">0%</span></td>
+</tr>
+<tr class="alt" id="Tr8">
+<td class="" style="width: 80%; padding-left:30px;">Asian</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT2L5">0%</span></td>
+</tr>
+<tr id="Tr10">
+<td class="" style="width: 80%; padding-left:30px;">Black or African American</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT2L6">83%</span></td>
+</tr>
+<tr class="alt" id="Tr11">
+<td class="" style="width: 80%; padding-left:30px;">Hispanic/Latino</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT2L3">1%</span></td>
+</tr>
+<tr id="Tr17">
+<td class="" style="width: 80%; padding-left:30px;">Native Hawaiian or Pacific Islander</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT2L7">0%</span></td>
+</tr>
+<tr class="alt" id="Tr13">
+<td class="" style="width: 80%; padding-left:30px;">White</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT2L8">1%</span></td>
+</tr>
+<tr class="alt" id="Tr14">
+<td class="" style="width: 80%; padding-left:30px;">Two or More Races</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT2L9">2%</span></td>
+</tr>
+<tr id="Tr15">
+<td class="" style="width: 80%; padding-left:30px;">Race and ethnicity unknown</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT2L10">8%</span></td>
+</tr>
+<tr class="alt" id="Tr16">
+<td class="" style="width: 80%; padding-left:30px;">Nonresident alien</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT2L2">5%</span></td>
+</tr>
+</tbody></table>
+<br/>
+<table class="grid" id="tbl4yearGradurate3" style="width:60%">
+<tbody><tr class="alt" id="Tr1">
+<td class="" colspan="2" style="vertical-align:middle;text-align:center; font-weight:bold;">Undergraduate Student Characteristics</td>
+</tr>
+<tr id="Tr3">
+<td class="" style="width: 80%;">Percent of undergraduates who are female</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L1">69%</span></td>
+</tr>
+<tr class="alt" id="Tr27">
+<td class="" style="width: 80%;">Percent of undergraduates who are full-time</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L2">98%</span></td>
+</tr>
+<tr id="Tr4">
+<td class="" colspan="2"> </td>
+</tr>
+<tr class="alt" id="Tr5">
+<td class="" colspan="2">Percent of undergraduates by race/ethnicity:</td>
+</tr>
+<tr class="alt" id="Tr20">
+<td class="" style="width: 80%; padding-left:30px;">American Indian or Alaska Native</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L5">0%</span></td>
+</tr>
+<tr id="Tr21">
+<td class="" style="width: 80%; padding-left:30px;">Asian</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L6">0%</span></td>
+</tr>
+<tr class="alt" id="Tr22">
+<td class="" style="width: 80%; padding-left:30px;">Black or African American</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L7">84%</span></td>
+</tr>
+<tr id="Tr19">
+<td class="" style="width: 80%; padding-left:30px;">Hispanic/Latino</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L4">1%</span></td>
+</tr>
+<tr class="alt" id="Tr24">
+<td class="" style="width: 80%; padding-left:30px;">Native Hawaiian or Pacific Islander</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L8">0%</span></td>
+</tr>
+<tr id="Tr26">
+<td class="" style="width: 80%; padding-left:30px;">White</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L9">0%</span></td>
+</tr>
+<tr id="Tr103">
+<td class="" style="width: 80%; padding-left:30px;">Two or More Races</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L10">2%</span></td>
+</tr>
+<tr class="alt" id="Tr104">
+<td class="" style="width: 80%; padding-left:30px;">Race and ethnicity unknown</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L11">7%</span></td>
+</tr>
+<tr id="Tr18">
+<td class="" style="width: 80%; padding-left:30px;">Nonresident alien</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L3">6%</span></td>
+</tr>
+<tr class="alt" id="Tr28">
+<td class="" colspan="2"> </td>
+</tr>
+<tr class="alt" id="Tr28_B">
+<td class="" colspan="2">Percent of undergraduate students by age:</td>
+</tr>
+<tr class="alt" id="Tr29_B">
+<td class="" style="width: 80%; padding-left:30px;">24 and under</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L16">96%</span></td>
+</tr>
+<tr class="alt" id="Tr30_B">
+<td class="" style="width: 80%; padding-left:30px;">25 and over</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L17">3%</span></td>
+</tr>
+<tr class="alt" id="Tr31_B">
+<td class="" style="width: 80%; padding-left:30px;">Age unknown</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT3L18">1%</span></td>
+</tr>
+</tbody></table>
+<br/>
+<table class="grid" id="tbl4yearGradurate4" style="width:60%">
+<tbody><tr class="alt" id="Tr34">
+<td class="" colspan="2" style="vertical-align:middle;text-align:center; font-weight:bold;">Undergraduate Retention and Graduation Rate Cohort</td>
+</tr>
+<tr id="Tr35">
+<td class="" style="width: 80%;">First-time, full-time bachelor’s seeking student retention rate</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT4L1">78%</span></td>
+</tr>
+<tr class="alt" id="Tr36">
+<td class="" style="width: 80%;">First-time, part-time bachelor’s seeking student retention rate</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT4L2">25%</span></td>
+</tr>
+<tr id="Tr37">
+<td class="" colspan="2"> </td>
+</tr>
+<tr class="alt" id="Tr38">
+<td class="" style="width: 80%;">Graduation rate cohort as percent of total entering students</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT4L3">93%</span></td>
+</tr>
+</tbody></table>
+<br/>
+<table class="grid" id="tbl4yearGradurate5" style="width:60%">
+<tbody><tr class="alt" id="Tr39">
+<td class="" colspan="2" style="vertical-align:middle;text-align:center; font-weight:bold;">Graduate Student Characteristics</td>
+</tr>
+<tr id="Tr40">
+<td class="" style="width: 80%;">Percent of graduate students who are female</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT5L1">68%</span></td>
+</tr>
+<tr class="alt" id="Tr41">
+<td class="" style="width: 80%;">Percent of graduate students who are full-time</td>
+<td class="" style="width: 20%;text-align:right; vertical-align:middle;"><span id="lbl4yearT5L2">76%</span></td>
+</tr>
+</tbody></table>
+<br/>
+</div>
+</div>
+</div>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+</tbody></table>
+</div>
+<div style="text-align:left">
+                    
+        		                  
+                    
+        </div></div>
+</div>
+</form>
+<div class="top"><a href="#top">Back to top</a></div>
+</body></html>

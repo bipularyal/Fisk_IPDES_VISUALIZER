@@ -1,0 +1,1354 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>
+	Reported Data
+</title>
+<style>
+        .page-header {
+            font-size: 16px;
+        }
+
+        @media print
+        {    
+            .page-header {
+                display: none;
+            }
+
+            .page-header-wrapper {
+                display: none;
+            }
+        }
+
+        select {
+            padding: 4px 4px;
+            font-size: 15px;
+            border-radius: 6px;
+        }
+
+        .mr-2 {
+            margin-right: 0.5em;
+        }
+
+        .mr-4 {
+            margin-right: 1em;
+        }
+
+        .mr-8 {
+            margin-right: 2em;
+        }
+
+        .btn {
+            border: 1px solid #999;
+            padding: 1px 10px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .loading-data {
+            margin: 20px auto 0 auto;
+            width: 150px;
+            text-align: center;
+        }
+
+        #top {
+            position: relative;
+            top: -100px;
+        }
+
+        .top {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            padding: 5px 5px;
+            background-color: #eee;
+            text-align: center;
+        }
+
+        .top a:link,
+        .top a:visited,
+        .top a:hover {
+            text-decoration: none;
+            color: #333;
+        }
+
+        .no-survey-found {
+            background-color: #f7f7f7;
+            padding: 20px 20px;
+            font-size: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .no-survey-found.show {
+            display: block;
+        }
+
+        #survey_content {
+            border:0px solid red;
+            margin-top: 20px;
+            padding-top: 10px;
+        }
+        .note-message {
+            padding: 8px 12px;
+            background-color: #fcfbec;
+            border:1px solid #c6c4a5;
+            border-radius:4px;
+            display:none;
+            font-size:13px;
+        }
+        .note-message.show {
+            display: block;
+        }
+    </style>
+<script src="scripts/jquery-3.6.0.js" type="text/javascript"></script>
+<script>
+        let year = 2007;
+        let prevYear = 2007;
+        let unitId = 220181;
+        let surveyNumber = 8;
+
+        function removeFacsimileStyleFiles() {
+            $('[data-year="2020"]').remove();
+            $('[data-year="2006"]').remove();
+            $('[data-year="2005"]').remove();
+            $('[data-year="20002004"]').remove();
+        }
+
+        function addFacsimileStyleFile() {
+            // update year
+            if (year >= 2020) {
+                addCssFile('facsimile/assets/css/styles.css', '2020');
+            } else if (year >= 2000 && year <= 2004) {
+                addCssFile('styles/fm_style00_04.css', '20002004');
+                addCssFile('styles/fm_style00_04_fixes.css', '20002004');
+            } else if (year === 2005) {
+                addCssFile('styles/fm_style05.css', '2005');
+            }
+            else if (year > 2005) {
+                addCssFile('styles/facsimile.css', '2006');
+            }
+        }
+
+        function addCssFile(fileName, dataYearAttr) {
+            var cssRef = document.createElement("link");
+            cssRef.setAttribute("rel", "stylesheet");
+            cssRef.setAttribute("type", "text/css");
+            cssRef.setAttribute("href", fileName);
+            cssRef.setAttribute('data-year', dataYearAttr);
+            document.getElementsByTagName("head")[0].appendChild(cssRef)
+        }
+
+        function loadContent() {
+            $('#survey_content').html('<div class="loading-data"><h2>Loading data...</h2></div>');
+            $('.no-survey-found').removeClass('show');
+            $('#data-revised-note').removeClass('show');
+            $('#data-not-revised-note').removeClass('show');
+           
+            $.ajax({
+                url: 'FacsimileView.aspx?action=data&year=' + year + '&prevYear=' + prevYear + '&unitId=' + unitId + '&surveyNumber=' + surveyNumber,
+                type: "GET",
+                cache: false,
+                success: function (data) {
+                    prevYear = year;
+                    var json = JSON.parse(data);
+                    $('#survey_content').html(json.SurveyHtml);
+
+                    //***************
+                    $('#data-not-revised-note').removeClass('show');
+                    $('#latest-year-data-not-revised-note').removeClass('show');
+                    $('#pre-2014-data-not-revised-note').removeClass('show');
+                    $('#data-revised-note').removeClass('show');
+
+                    // Message about revised data:
+                    if (year >= 2022 ) {
+                        $('#latest-year-data-not-revised-note').addClass('show');
+                    }
+                    else if (year >= 2014 && year<=2021) {
+
+                        if (json.DataRevised === true)
+                            $('#data-revised-note').addClass('show');
+                        else //if (json.DataRevised === false)
+                            $('#data-not-revised-note').addClass('show');
+                    }
+                    else
+                        $('#pre-2014-data-not-revised-note').addClass('show');
+
+
+                    const container = document.getElementById('survey_content');
+
+                    // Get all buttons within the container
+                    const buttons = container.querySelectorAll('button');
+
+                    // Loop through each button and disable it
+                    buttons.forEach(button => {
+                        button.disabled = true;
+                    });
+
+
+                    if (json.Surveys) {
+                        // we need to create new values in Survey dropdown
+                        let dropdown = $('#select-surveys')[0];
+                        // first remove all elements
+                        while (dropdown.options.length > 0)
+                            dropdown.remove(0);
+
+                        let surveyNumbers = Object.keys(json.Surveys);
+                        let surveyNumberExistsInDifferentYear = false;
+                        for (let i = 0; i < surveyNumbers.length; i++) {
+                            let opt = document.createElement('option');
+                            opt.value = surveyNumbers[i];
+                            if (surveyNumbers[i] == surveyNumber) {
+                                surveyNumberExistsInDifferentYear = true;
+                                opt.selected = true;
+                            }
+                            opt.innerHTML = json.Surveys[surveyNumbers[i]];
+                            dropdown.appendChild(opt);
+                        }
+                        // if survey does not exists, add empty <option>
+                        if (surveyNumberExistsInDifferentYear == false) {
+                            let opt = document.createElement('option');
+                            opt.value = '';
+                            opt.innerHTML = 'Select a survey';
+                            opt.selected = true;
+                            dropdown.add(opt, dropdown.options[0]);
+                            $('.no-survey-found').addClass('show');
+                            $('#data-not-revised-note').removeClass('show');
+                        }                       
+                            
+                    }
+
+                    // Update url to reflect selected year/survey
+                    //let newUrl = new URL(window.location.href);
+                    //let params = new URLSearchParams(newUrl.search);
+                    
+                   
+                    //params.set('year', year);
+                    //params.set('surveyNumber', surveyNumber)
+
+
+                    let searchParams = new URLSearchParams(window.location.search);
+
+                    searchParams.delete("surveynumber");
+                    searchParams.delete("year");
+                    searchParams.set('year', year);
+                    searchParams.set('surveyNumber', surveyNumber)
+
+                    if (window.history.replaceState) {
+                        const url = window.location.protocol
+                            + "//" + window.location.host
+                            + window.location.pathname
+                            + "?"
+                            + searchParams.toString();
+
+                        window.history.replaceState({
+                            path: url
+                        }, "", url)
+                    }
+
+
+                },
+                error: function (xhr, err) {
+                    console.log("Status: " + xhr.status + "\nResponse Text:" + xhr.responseText);
+                }
+            });
+        }
+
+        function selectSurvey(ev) {
+            surveyNumber = ev.target.value;
+            loadContent();
+        }
+
+        function selectYear(ev) {
+            year = +ev.target.value;
+            loadContent();
+
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+        }
+
+        function updateURLParameter(url, param, paramVal) {
+            let TheAnchor = null;
+            let newAdditionalURL = "";
+            let tempArray = url.split("?");
+            let baseURL = tempArray[0];
+            let additionalURL = tempArray[1];
+            let temp = "";
+
+            if (additionalURL) {
+                var tmpAnchor = additionalURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+                if (TheAnchor)
+                    additionalURL = TheParams;
+
+                tempArray = additionalURL.split("&");
+
+                for (var i = 0; i < tempArray.length; i++) {
+                    if (tempArray[i].split('=')[0] != param) {
+                        newAdditionalURL += temp + tempArray[i];
+                        temp = "&";
+                    }
+                }
+            }
+            else {
+                var tmpAnchor = baseURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+
+                if (TheParams)
+                    baseURL = TheParams;
+            }
+
+            if (TheAnchor)
+                paramVal += "#" + TheAnchor;
+
+            var rows_txt = temp + "" + param + "=" + paramVal;
+            return baseURL + "?" + newAdditionalURL + rows_txt;
+        }
+
+        
+
+        $(document).ready(function () {
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+            loadContent();
+        });
+
+        function printPage() {
+            window.print();
+        }
+    </script>
+<link data-year="2006" href="styles/facsimile.css" rel="stylesheet" type="text/css"/></head>
+<body>
+<div class="page-header-wrapper" style="background-color: #eee; padding: 18px 6px;">
+<div class="page-header" style="width: 90%; margin: 0 auto;">
+<div style="display: flex; align-items: center!important;">
+<div class="mr-4">Reported Data: Fisk University </div>
+<div class="mr-4">|</div>
+<div class="mr-2">Select year:</div>
+<div class="mr-4">
+<select onchange="selectYear(event)">
+<option value="2022">2022</option>
+<option value="2021">2021</option>
+<option value="2020">2020</option>
+<option value="2019">2019</option>
+<option value="2018">2018</option>
+<option value="2017">2017</option>
+<option value="2016">2016</option>
+<option value="2015">2015</option>
+<option value="2014">2014</option>
+<option value="2013">2013</option>
+<option value="2012">2012</option>
+<option value="2011">2011</option>
+<option value="2010">2010</option>
+<option value="2009">2009</option>
+<option value="2008">2008</option>
+<option selected="" value="2007">2007</option>
+<option value="2006">2006</option>
+<option value="2005">2005</option>
+<option value="2004">2004</option>
+<option value="2003">2003</option>
+<option value="2002">2002</option>
+<option value="2001">2001</option>
+</select>
+</div>
+<div class="mr-2">Select survey:</div>
+<div class="mr-2">
+<select id="select-surveys" onchange="selectSurvey(event)">
+<option value="1">Institutional Characteristics</option>
+<option value="2">Fall Enrollment</option>
+<option value="14">12-Month Enrollment</option>
+<option value="3">Completions</option>
+<option selected="" value="8">Graduation Rates</option>
+<option value="7">Student Financial Aid and Net Price</option>
+<option value="6">Finance</option>
+<option value="9">Human Resources</option>
+</select>
+</div>
+<div style="flex: 1 1 auto!important;"> </div>
+<div>
+<button class="mr-4 btn">
+<img onclick="printPage()" src="images/printer-svgrepo-com.svg" style="width: 15px"/>
+</button>
+<a href="Facsimile.aspx?unitId=220181">
+<img src="images/icon_close.svg" style="width: 25px"/>
+</a>
+</div>
+</div>
+</div>
+</div>
+<a id="top"></a>
+<form action="./facsimileView.aspx?unitid=220181&amp;surveynumber=8&amp;year=2007&amp;goToReportId=6" id="form1" method="post" name="form1">
+<div>
+<input id="__VIEWSTATE" name="__VIEWSTATE" type="hidden" value="/wEPDwUJNDk4MDAyNjQ0ZGQ1Rt5I0VdqjyBZxpj37FRHeGkbkoRpCmohM64NK8Nn3w=="/>
+</div>
+<div>
+<input id="__VIEWSTATEGENERATOR" name="__VIEWSTATEGENERATOR" type="hidden" value="3C3AC055"/>
+</div>
+<div style="width: 1000px; margin: 0 auto;">
+<div class="note-message" id="data-not-revised-note">Note: Institution did NOT submit revisions through the Prior Year Data Revision System for selected collection year and survey.</div>
+<div class="note-message" id="data-revised-note">Note: Reported data includes revisions made through the Prior Year Data Revision System for  selected collection year and survey.</div>
+<div class="note-message show" id="pre-2014-data-not-revised-note">Note: Reported data do not include revisions made through the Prior Year Data Revision System for any institution prior to collection year 2014.</div>
+<div class="note-message" id="latest-year-data-not-revised-note">Note: Revisions made through the Prior Year Data Revision System are not available for the selected collection year.</div>
+<div class="no-survey-found">
+                Please select survey from dropdown above
+            </div>
+<div id="survey_content"><div class="facsimile_assets"><table border="0" cellpadding="0" cellspacing="0" id="Table3" width="650">
+<tbody><tr>
+<td align="left">
+<table border="0" cellpadding="0" cellspacing="0" id="tblHeader" width="650">
+<tbody><tr>
+<td colspan="2">
+<div align="center" class="pagetitle">
+<span id="lblSurveyName">Graduation Rates, status as of August 31, 2007</span>
+</div>
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Screening questions</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="4">Does your institution use a website to disclose Student-Right-to-Know student athlete graduation rates?</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" nowrap="true"> <input checked="true" type="radio" value="2"/> </td><td class="sc-tb-l" colspan="3">No.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" nowrap="true"> <input type="radio" value="1"/> </td><td class="sc-tb-l">Yes. Please provide the URL.</td><td class="sc-tb-r">http://</td><td class="sc-tb-l" nowrap="true"><input class="sc-text-tbn" id="tb_f7903" maxlength="150" name="tb_f7903" style="width:210px;" type="text" value=""/></td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="2">Does your institution offer bachelor's degree programs of 5 years or longer?<br/><i>If you answer Yes to this question, a screen will be generated for you to report the number of students still enrolled in long programs as of August 31, 2007</i></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c" nowrap="true"><input checked="true" type="radio" value="2"/></td><td class="sc-tb-l">No.                                                                                                </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" nowrap="true"><input type="radio" value="1"/></td><td class="sc-tb-l">Yes. </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l">Based on your institution's response to the predominant calendar system question (B3) on the Institutional Characteristics survey from the IPEDS Fall 2007 Data Collection, your institution must report graduation rates data using a</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"><b>Fall Cohort</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l"><i>A fall cohort is used by institutions with standard academic terms (semester, trimester, quarter, 4-1-4, other academic).  A full-year cohort is used by institutions offering primarily occupational/vocational programs and operating on a continuous basis. </i></td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="5">Caveat (will be posted on the College Navigator website)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5" nowrap="true"> <textarea id="cvt_f7908" name="cvt_f7908" onchange='return trTxt(this, 999,"Text was to long and has been shortened. Please be concise." );' oninput='return trTxt(this, 999,"Text was to long and has been shortened. Please be concise." );' onkeyup='return trTxt(this, 999,"Text was to long and has been shortened. Please be concise." );' onpaste='return trTxt(this, 999,"Text was to long and has been shortened. Please be concise." );' value=""></textarea></td>
+</tr>
+</tbody></table>
+</div>
+</div><hr style="PAGE-BREAK-AFTER:always;margin-bottom:30px;"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Section I - Graduation Rate - Establishing cohorts</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="3">Establishing cohorts</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 1 of 2</td><td class="sc-tb-c" colspan="2"><a href="javascript:openglossary(119)">Cohort</a> year 2001</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"><a href="javascript:openglossary(307)" style="color:Black">Initial cohort</a></td><td class="sc-tb-c"><a href="javascript:openglossary(563)" style="color:Black">Revised cohort</a></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"> </td><td class="sc-tb-c">(01)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="3">Men</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7914" name="hd_f7914" type="hidden" value="1"/>1</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4537" maxlength="7" name="tb_f4537" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(85)" style="color:Black">Black, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7915" name="hd_f7915" type="hidden" value="43"/>43</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4540" maxlength="7" name="tb_f4540" style="width:42px;" type="text" value="44"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(43)" style="color:Black">American Indian/Alaska Native</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7916" name="hd_f7916" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4543" maxlength="7" name="tb_f4543" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(49)" style="color:Black">Asian/Pacific Islander</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7917" name="hd_f7917" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4546" maxlength="7" name="tb_f4546" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(287)" style="color:Black">Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7918" name="hd_f7918" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4549" maxlength="7" name="tb_f4549" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(695)" style="color:Black">White, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7919" name="hd_f7919" type="hidden" value="1"/>1</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4552" maxlength="7" name="tb_f4552" style="width:42px;" type="text" value="1"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race/ethnicity unknown</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7920" name="hd_f7920" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4555" maxlength="7" name="tb_f4555" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total men</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7921" name="hd_f7921" type="hidden" value="45"/>45</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4558" name="hd_f4558" type="hidden" value="45"/>45</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="3">Women</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7922" name="hd_f7922" type="hidden" value="4"/>4</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4561" maxlength="7" name="tb_f4561" style="width:42px;" type="text" value="4"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(85)" style="color:Black">Black, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7923" name="hd_f7923" type="hidden" value="99"/>99</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4564" maxlength="7" name="tb_f4564" style="width:42px;" type="text" value="97"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(43)" style="color:Black">American Indian/Alaska Native</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7924" name="hd_f7924" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4567" maxlength="7" name="tb_f4567" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(49)" style="color:Black">Asian/Pacific Islander</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7925" name="hd_f7925" type="hidden" value="2"/>2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4570" maxlength="7" name="tb_f4570" style="width:42px;" type="text" value="2"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(287)" style="color:Black">Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7926" name="hd_f7926" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4573" maxlength="7" name="tb_f4573" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(695)" style="color:Black">White, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7927" name="hd_f7927" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4576" maxlength="7" name="tb_f4576" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race/ethnicity unknown</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7928" name="hd_f7928" type="hidden" value="1"/>1</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4579" maxlength="7" name="tb_f4579" style="width:42px;" type="text" value="0"/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total women</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f7929" name="hd_f7929" type="hidden" value="106"/>106</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4582" name="hd_f4582" type="hidden" value="103"/>103</td>
+</tr>
+</tbody></table>
+</div>
+</div><hr style="PAGE-BREAK-AFTER:always;margin-bottom:30px;"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Section I - Graduation Rate - Establishing cohorts</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="4"><ul><li>Incoming students that are seeking a bachelors degree should be reported in column 02.  If there are 
+any entering students who are seeking an associates degree or undergraduate certificates, they will be generated in 
+column 03.</li><li>If you have no changes to the preloaded data on this screen, you must click the "Save and Next" button to 
+generate screens to report completers and transfers.</li></ul></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-c" colspan="4">Establishing Cohorts</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Screen 2 of 2</td><td class="sc-tb-c" colspan="3"><a href="javascript:openglossary(119)">Cohort</a> year 2001</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">Revised Cohort</td><td class="sc-tb-c"><a href="javascript:openglossary(79)" style="color:Black">Bachelor's or equivalent<br/>degree-seeking subcohort</a></td><td class="sc-tb-c"><a href="javascript:openglossary(441)" style="color:Black">Other degree-seeking<br/>subcohort</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">(01)</td><td class="sc-tb-c">(02)</td><td class="sc-tb-c">(03)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="4">Men</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Nonresident alien</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4537" name="hd_f4537" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4538" maxlength="7" name="tb_f4538" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4539" name="hd_f4539" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Black, non-Hispanic</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4540" name="hd_f4540" type="hidden" value="44"/>44</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4541" maxlength="7" name="tb_f4541" style="width:42px;" type="text" value="44"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4542" name="hd_f4542" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">American Indian/Alaskan Native</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4543" name="hd_f4543" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4544" maxlength="7" name="tb_f4544" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4545" name="hd_f4545" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Asian/Pacific Islander</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4546" name="hd_f4546" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4547" maxlength="7" name="tb_f4547" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4548" name="hd_f4548" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Hispanic</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4549" name="hd_f4549" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4550" maxlength="7" name="tb_f4550" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4551" name="hd_f4551" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">White, non-Hispanic</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4552" name="hd_f4552" type="hidden" value="1"/>1</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4553" maxlength="7" name="tb_f4553" style="width:42px;" type="text" value="1"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4554" name="hd_f4554" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Race/ethnicity unknown</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4555" name="hd_f4555" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4556" maxlength="7" name="tb_f4556" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4557" name="hd_f4557" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total men</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4558" name="hd_f4558" type="hidden" value="45"/>45</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4559" name="hd_f4559" type="hidden" value="45"/>45</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4560" name="hd_f4560" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="4">Women</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Nonresident alien</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4561" name="hd_f4561" type="hidden" value="4"/>4</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4562" maxlength="7" name="tb_f4562" style="width:42px;" type="text" value="4"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4563" name="hd_f4563" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Black, non-Hispanic</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4564" name="hd_f4564" type="hidden" value="97"/>97</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4565" maxlength="7" name="tb_f4565" style="width:42px;" type="text" value="97"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4566" name="hd_f4566" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">American Indian/Alaskan Native</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4567" name="hd_f4567" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4568" maxlength="7" name="tb_f4568" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4569" name="hd_f4569" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Asian/Pacific Islander</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4570" name="hd_f4570" type="hidden" value="2"/>2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4571" maxlength="7" name="tb_f4571" style="width:42px;" type="text" value="2"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4572" name="hd_f4572" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Hispanic</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4573" name="hd_f4573" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4574" maxlength="7" name="tb_f4574" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4575" name="hd_f4575" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">White, non-Hispanic</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4576" name="hd_f4576" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4577" maxlength="7" name="tb_f4577" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4578" name="hd_f4578" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Race/ethnicity unknown</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4579" name="hd_f4579" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4580" maxlength="7" name="tb_f4580" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4581" name="hd_f4581" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total women</td><td class="sc-dbcalc-f sc-tb-r"><input id="hd_f4582" name="hd_f4582" type="hidden" value="103"/>103</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4583" name="hd_f4583" type="hidden" value="103"/>103</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4584" name="hd_f4584" type="hidden" value="0"/>0</td>
+</tr>
+</tbody></table><span><input id="hd_f10758" name="hd_f10758" type="hidden" value="1"/><input id="hd_f10754" name="hd_f10754" type="hidden" value="0"/><input id="hd_f10755" name="hd_f10755" type="hidden" value="0"/><input id="hd_f10756" name="hd_f10756" type="hidden" value="0"/><input id="hd_f10757" name="hd_f10757" type="hidden" value="0"/></span>
+</div>
+</div><hr style="PAGE-BREAK-AFTER:always;margin-bottom:30px;"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Section II - Graduation Rate - Completers within 150%</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"><ul><li>In the columns below, report the status of the Bachelor's degree-seeking students reported in the subcohort in Col 10.</li><li>Those undergraduate students who attained OTHER THAN A BACHELOR'S DEGREE within 150% of normal time as of August 31, 2007 should be reported in either Col 11 or 12, depending on the length of the program.</li><li>Those who attained a bachelor's degree or equivalent within 150% or normal time should be reported in Col 18.</li></ul></td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-c" colspan="6">Subcohort of full-time, <a href="javascript:openglossary(243)">first-time students</a> seeking a bachelor's or equivalent degree</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Screen 1 of 4</td><td class="sc-tb-c" colspan="5"><a href="javascript:openglossary(119)">Cohort</a> year 2001</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"><a href="javascript:openglossary(79)" style="color:Black">Bachelor's or equivalent degree-seeking subcohort</a></td><td class="sc-tb-c" colspan="3">Subcohort students who completed their program within 150% of <a href="javascript:openglossary(421)">normal time to completion</a></td><td class="sc-tb-c">Total <a href="javascript:openglossary(131)">completers within 150%</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"> </td><td class="sc-tb-c">Completers of programs of <br/>&lt;2-yrs</td><td class="sc-tb-c">Completers of programs of <br/>2&lt;4-yrs</td><td class="sc-tb-c">Completers of bachelor's or equivalent degrees</td><td class="sc-tb-c"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">(10)</td><td class="sc-tb-c">(11)</td><td class="sc-tb-c">(12)</td><td class="sc-tb-c">(18)</td><td class="sc-tb-c">(29)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">Men</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4538" name="hd_f4538" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4585" maxlength="7" name="tb_f4585" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4586" maxlength="7" name="tb_f4586" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4587" maxlength="7" name="tb_f4587" style="width:42px;" type="text" value="0"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4588" name="hd_f4588" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(85)" style="color:Black">Black, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4541" name="hd_f4541" type="hidden" value="44"/>44</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4589" maxlength="7" name="tb_f4589" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4590" maxlength="7" name="tb_f4590" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4591" maxlength="7" name="tb_f4591" style="width:42px;" type="text" value="19"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4592" name="hd_f4592" type="hidden" value="19"/>19</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(43)" style="color:Black">American Indian/Alaska Native</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4544" name="hd_f4544" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4593" maxlength="7" name="tb_f4593" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4594" maxlength="7" name="tb_f4594" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4595" maxlength="7" name="tb_f4595" style="width:42px;" type="text" value="0"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4596" name="hd_f4596" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(49)" style="color:Black">Asian/Pacific Islander</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4547" name="hd_f4547" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4597" maxlength="7" name="tb_f4597" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4598" maxlength="7" name="tb_f4598" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4599" maxlength="7" name="tb_f4599" style="width:42px;" type="text" value="0"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4600" name="hd_f4600" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(287)" style="color:Black">Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4550" name="hd_f4550" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4601" maxlength="7" name="tb_f4601" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4602" maxlength="7" name="tb_f4602" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4603" maxlength="7" name="tb_f4603" style="width:42px;" type="text" value="0"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4604" name="hd_f4604" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(695)" style="color:Black">White, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4553" name="hd_f4553" type="hidden" value="1"/>1</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4605" maxlength="7" name="tb_f4605" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4606" maxlength="7" name="tb_f4606" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4607" maxlength="7" name="tb_f4607" style="width:42px;" type="text" value="1"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4608" name="hd_f4608" type="hidden" value="1"/>1</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race/ethnicity unknown</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4556" name="hd_f4556" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4609" maxlength="7" name="tb_f4609" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4610" maxlength="7" name="tb_f4610" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4611" maxlength="7" name="tb_f4611" style="width:42px;" type="text" value="0"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4612" name="hd_f4612" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total men</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4559" name="hd_f4559" type="hidden" value="45"/>45</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4613" name="hd_f4613" type="hidden" value=""/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4614" name="hd_f4614" type="hidden" value=""/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4615" name="hd_f4615" type="hidden" value="20"/>20</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4616" name="hd_f4616" type="hidden" value="20"/>20</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="6">Women</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4562" name="hd_f4562" type="hidden" value="4"/>4</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4617" maxlength="7" name="tb_f4617" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4618" maxlength="7" name="tb_f4618" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4619" maxlength="7" name="tb_f4619" style="width:42px;" type="text" value="4"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4620" name="hd_f4620" type="hidden" value="4"/>4</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(85)" style="color:Black">Black, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4565" name="hd_f4565" type="hidden" value="97"/>97</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4621" maxlength="7" name="tb_f4621" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4622" maxlength="7" name="tb_f4622" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4623" maxlength="7" name="tb_f4623" style="width:42px;" type="text" value="53"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4624" name="hd_f4624" type="hidden" value="53"/>53</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(43)" style="color:Black">American Indian/Alaska Native</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4568" name="hd_f4568" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4625" maxlength="7" name="tb_f4625" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4626" maxlength="7" name="tb_f4626" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4627" maxlength="7" name="tb_f4627" style="width:42px;" type="text" value="0"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4628" name="hd_f4628" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(49)" style="color:Black">Asian/Pacific Islander</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4571" name="hd_f4571" type="hidden" value="2"/>2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4629" maxlength="7" name="tb_f4629" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4630" maxlength="7" name="tb_f4630" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4631" maxlength="7" name="tb_f4631" style="width:42px;" type="text" value="2"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4632" name="hd_f4632" type="hidden" value="2"/>2</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(287)" style="color:Black">Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4574" name="hd_f4574" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4633" maxlength="7" name="tb_f4633" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4634" maxlength="7" name="tb_f4634" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4635" maxlength="7" name="tb_f4635" style="width:42px;" type="text" value="0"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4636" name="hd_f4636" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(695)" style="color:Black">White, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4577" name="hd_f4577" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4637" maxlength="7" name="tb_f4637" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4638" maxlength="7" name="tb_f4638" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4639" maxlength="7" name="tb_f4639" style="width:42px;" type="text" value="0"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4640" name="hd_f4640" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race/ethnicity unknown</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4580" name="hd_f4580" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4641" maxlength="7" name="tb_f4641" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4642" maxlength="7" name="tb_f4642" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4643" maxlength="7" name="tb_f4643" style="width:42px;" type="text" value="0"/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4644" name="hd_f4644" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total women</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4583" name="hd_f4583" type="hidden" value="103"/>103</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4645" name="hd_f4645" type="hidden" value=""/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4646" name="hd_f4646" type="hidden" value=""/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4647" name="hd_f4647" type="hidden" value="59"/>59</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4648" name="hd_f4648" type="hidden" value="59"/>59</td>
+</tr>
+</tbody></table>
+</div>
+</div><hr style="PAGE-BREAK-AFTER:always;margin-bottom:30px;"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Section II - Graduation Rate - Bachelor's completers by length of time to degree</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"><ul><li>The students who attained a bachelor's degree or equivalent as reported on the previous page are listed in Col 18. For the other columns below, report these completers according to how long it took them to complete the program.</li></ul></td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-c" colspan="6">Subcohort of full-time, <a href="javascript:openglossary(243)">first-time students</a> seeking a bachelor's or equivalent degree</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Screen 2 of 4</td><td class="sc-tb-c" colspan="5"><a href="javascript:openglossary(119)">Cohort</a> year 2001</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"><a href="javascript:openglossary(79)" style="color:Black">Bachelor's or equivalent <br/>degree-seeking subcohort</a></td><td class="sc-tb-c" colspan="3">Subcohort students who attained a <a href="javascript:openglossary(77)">bachelor's degree</a> or equivalent</td><td class="sc-tb-c">Completed bachelor's degree <br/>or equivalent within 150%</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"> </td><td class="sc-tb-c">Completed the program in <br/>4 yrs or less</td><td class="sc-tb-c">Completed the program in <br/>5 yrs</td><td class="sc-tb-c">Completed the program in <br/>6 yrs</td><td class="sc-tb-c"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">(10)</td><td class="sc-tb-c">(19)</td><td class="sc-tb-c">(20)</td><td class="sc-tb-c">(21)</td><td class="sc-tb-c">(18)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">Men</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4538" name="hd_f4538" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4649" maxlength="7" name="tb_f4649" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4650" maxlength="7" name="tb_f4650" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4651" name="hd_f4651" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4587" name="hd_f4587" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(85)" style="color:Black">Black, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4541" name="hd_f4541" type="hidden" value="44"/>44</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4653" maxlength="7" name="tb_f4653" style="width:42px;" type="text" value="16"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4654" maxlength="7" name="tb_f4654" style="width:42px;" type="text" value="2"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4655" name="hd_f4655" type="hidden" value="1"/>1</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4591" name="hd_f4591" type="hidden" value="19"/>19</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(43)" style="color:Black">American Indian/Alaska Native</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4544" name="hd_f4544" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4657" maxlength="7" name="tb_f4657" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4658" maxlength="7" name="tb_f4658" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4659" name="hd_f4659" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4595" name="hd_f4595" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(49)" style="color:Black">Asian/Pacific Islander</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4547" name="hd_f4547" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4661" maxlength="7" name="tb_f4661" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4662" maxlength="7" name="tb_f4662" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4663" name="hd_f4663" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4599" name="hd_f4599" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(287)" style="color:Black">Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4550" name="hd_f4550" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4665" maxlength="7" name="tb_f4665" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4666" maxlength="7" name="tb_f4666" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4667" name="hd_f4667" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4603" name="hd_f4603" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(695)" style="color:Black">White, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4553" name="hd_f4553" type="hidden" value="1"/>1</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4669" maxlength="7" name="tb_f4669" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4670" maxlength="7" name="tb_f4670" style="width:42px;" type="text" value="1"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4671" name="hd_f4671" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4607" name="hd_f4607" type="hidden" value="1"/>1</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race/ethnicity unknown</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4556" name="hd_f4556" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4673" maxlength="7" name="tb_f4673" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4674" maxlength="7" name="tb_f4674" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4675" name="hd_f4675" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4611" name="hd_f4611" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total men</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4559" name="hd_f4559" type="hidden" value="45"/>45</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4677" name="hd_f4677" type="hidden" value="16"/>16</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4678" name="hd_f4678" type="hidden" value="3"/>3</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4679" name="hd_f4679" type="hidden" value="1"/>1</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4615" name="hd_f4615" type="hidden" value="20"/>20</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="6">Women</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4562" name="hd_f4562" type="hidden" value="4"/>4</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4681" maxlength="7" name="tb_f4681" style="width:42px;" type="text" value="3"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4682" maxlength="7" name="tb_f4682" style="width:42px;" type="text" value="1"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4683" name="hd_f4683" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4619" name="hd_f4619" type="hidden" value="4"/>4</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(85)" style="color:Black">Black, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4565" name="hd_f4565" type="hidden" value="97"/>97</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4685" maxlength="7" name="tb_f4685" style="width:42px;" type="text" value="43"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4686" maxlength="7" name="tb_f4686" style="width:42px;" type="text" value="10"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4687" name="hd_f4687" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4623" name="hd_f4623" type="hidden" value="53"/>53</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(43)" style="color:Black">American Indian/Alaska Native</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4568" name="hd_f4568" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4689" maxlength="7" name="tb_f4689" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4690" maxlength="7" name="tb_f4690" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4691" name="hd_f4691" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4627" name="hd_f4627" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(49)" style="color:Black">Asian/Pacific Islander</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4571" name="hd_f4571" type="hidden" value="2"/>2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4693" maxlength="7" name="tb_f4693" style="width:42px;" type="text" value="2"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4694" maxlength="7" name="tb_f4694" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4695" name="hd_f4695" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4631" name="hd_f4631" type="hidden" value="2"/>2</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(287)" style="color:Black">Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4574" name="hd_f4574" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4697" maxlength="7" name="tb_f4697" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4698" maxlength="7" name="tb_f4698" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4699" name="hd_f4699" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4635" name="hd_f4635" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(695)" style="color:Black">White, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4577" name="hd_f4577" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4701" maxlength="7" name="tb_f4701" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4702" maxlength="7" name="tb_f4702" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4703" name="hd_f4703" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4639" name="hd_f4639" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race/ethnicity unknown</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4580" name="hd_f4580" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4705" maxlength="7" name="tb_f4705" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4706" maxlength="7" name="tb_f4706" style="width:42px;" type="text" value="0"/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4707" name="hd_f4707" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4643" name="hd_f4643" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total women</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4583" name="hd_f4583" type="hidden" value="103"/>103</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4709" name="hd_f4709" type="hidden" value="48"/>48</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4710" name="hd_f4710" type="hidden" value="11"/>11</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f4711" name="hd_f4711" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4647" name="hd_f4647" type="hidden" value="59"/>59</td>
+</tr>
+</tbody></table>
+</div>
+</div><hr style="PAGE-BREAK-AFTER:always;margin-bottom:30px;"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Section II - Graduation Rate - Transfers/exclusions</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-tb-l"><ul><li>In the columns below, report the status of the BACHELOR'S DEGREE-SEEKING STUDENTS reported in the subcohort in Col 10, who did not complete a program as of August 31, 2007.</li><li>Report transfers-out who did not complete a program in Col 30.  If the mission of your institution includes providing substantial preparation for students to enroll in another eligible institution WITHOUT having completed their programs, you must report transfer-out data in column 30.  A school is required to report only on those students that the school knows have transferred to another school.  A school must document that the student actually transferred.  If it is not part of your mission, you may report transfer-out data if you wish.</li></ul></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><ul><li>Report exclusions from the cohort in Col 45. The ONLY allowable categories for this column are:<br/>students who died or became permanently disabled<br/>students who left school to serve in the armed forces (or have been called up to active duty)<br/>students who left school to serve with a foreign aid service of the Federal Government<br/>students who left school to serve on an official church mission </li><li>Col 49 [non-completers (still enrolled + not enrolled) and completers &gt; 150% of normal time] will be calculated for you</li><li>If you do not have any values to enter in either column 30 or 45, you must enter at least one zero in a field on this screen</li></ul></td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="6">Subcohort of full-time, <a href="javascript:openglossary(243)">first-time students</a> seeking a bachelor's or equivalent degree</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 3 of 4</td><td class="sc-tb-c" colspan="5"><a href="javascript:openglossary(119)">Cohort</a> year 2001</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c"><a href="javascript:openglossary(79)" style="color:Black">Bachelor's or equivalent <br/>degree-seeking subcohort</a></td><td class="sc-tb-c">Total <a href="javascript:openglossary(131)">completers within 150%</a></td><td class="sc-tb-c"><a href="javascript:openglossary(657)" style="color:Black">Total transfer-out students <br/></a></td><td class="sc-tb-c">Total <a href="javascript:openglossary(207)">exclusions</a></td><td class="sc-tb-c">Non-completers (still enrolled + not enrolled) and completers &gt; 150%</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">(10)</td><td class="sc-tb-c">(29)</td><td class="sc-tb-c">(30)</td><td class="sc-tb-c">(45)</td><td class="sc-tb-c">(49)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">Men</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(419)" style="color:Black">Nonresident alien</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4538" name="hd_f4538" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4588" name="hd_f4588" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4713" maxlength="7" name="tb_f4713" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4714" maxlength="7" name="tb_f4714" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f12998" name="hd_f12998" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(85)" style="color:Black">Black, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4541" name="hd_f4541" type="hidden" value="44"/>44</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4592" name="hd_f4592" type="hidden" value="19"/>19</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4716" maxlength="7" name="tb_f4716" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4717" maxlength="7" name="tb_f4717" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f12999" name="hd_f12999" type="hidden" value="25"/>25</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(43)" style="color:Black">American Indian/Alaska Native</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4544" name="hd_f4544" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4596" name="hd_f4596" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4719" maxlength="7" name="tb_f4719" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4720" maxlength="7" name="tb_f4720" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13000" name="hd_f13000" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(49)" style="color:Black">Asian/Pacific Islander</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4547" name="hd_f4547" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4600" name="hd_f4600" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4722" maxlength="7" name="tb_f4722" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4723" maxlength="7" name="tb_f4723" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13001" name="hd_f13001" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(287)" style="color:Black">Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4550" name="hd_f4550" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4604" name="hd_f4604" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4725" maxlength="7" name="tb_f4725" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4726" maxlength="7" name="tb_f4726" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13002" name="hd_f13002" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(695)" style="color:Black">White, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4553" name="hd_f4553" type="hidden" value="1"/>1</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4608" name="hd_f4608" type="hidden" value="1"/>1</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4728" maxlength="7" name="tb_f4728" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4729" maxlength="7" name="tb_f4729" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13003" name="hd_f13003" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race/ethnicity unknown</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4556" name="hd_f4556" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4612" name="hd_f4612" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4731" maxlength="7" name="tb_f4731" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4732" maxlength="7" name="tb_f4732" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13004" name="hd_f13004" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total men</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4559" name="hd_f4559" type="hidden" value="45"/>45</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4616" name="hd_f4616" type="hidden" value="20"/>20</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4734" name="hd_f4734" type="hidden" value=""/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4735" name="hd_f4735" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13005" name="hd_f13005" type="hidden" value="25"/>25</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="6">Women</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Nonresident alien</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4562" name="hd_f4562" type="hidden" value="4"/>4</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4620" name="hd_f4620" type="hidden" value="4"/>4</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4737" maxlength="7" name="tb_f4737" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4738" maxlength="7" name="tb_f4738" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13006" name="hd_f13006" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(85)" style="color:Black">Black, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4565" name="hd_f4565" type="hidden" value="97"/>97</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4624" name="hd_f4624" type="hidden" value="53"/>53</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4740" maxlength="7" name="tb_f4740" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4741" maxlength="7" name="tb_f4741" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13007" name="hd_f13007" type="hidden" value="44"/>44</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(43)" style="color:Black">American Indian/Alaska Native</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4568" name="hd_f4568" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4628" name="hd_f4628" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4743" maxlength="7" name="tb_f4743" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4744" maxlength="7" name="tb_f4744" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13008" name="hd_f13008" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(49)" style="color:Black">Asian/Pacific Islander</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4571" name="hd_f4571" type="hidden" value="2"/>2</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4632" name="hd_f4632" type="hidden" value="2"/>2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4746" maxlength="7" name="tb_f4746" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4747" maxlength="7" name="tb_f4747" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13009" name="hd_f13009" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(287)" style="color:Black">Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4574" name="hd_f4574" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4636" name="hd_f4636" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4749" maxlength="7" name="tb_f4749" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4750" maxlength="7" name="tb_f4750" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13010" name="hd_f13010" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(695)" style="color:Black">White, non-Hispanic</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4577" name="hd_f4577" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4640" name="hd_f4640" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4752" maxlength="7" name="tb_f4752" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4753" maxlength="7" name="tb_f4753" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13011" name="hd_f13011" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(543)" style="color:Black">Race/ethnicity unknown</a></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4580" name="hd_f4580" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4644" name="hd_f4644" type="hidden" value="0"/>0</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4755" maxlength="7" name="tb_f4755" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f4756" maxlength="7" name="tb_f4756" style="width:42px;" type="text" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13012" name="hd_f13012" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total women</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4583" name="hd_f4583" type="hidden" value="103"/>103</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f4648" name="hd_f4648" type="hidden" value="59"/>59</td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4758" name="hd_f4758" type="hidden" value=""/></td><td class="sc-calc sc-tb-r" nowrap="true"> <input id="hd_f4759" name="hd_f4759" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f13013" name="hd_f13013" type="hidden" value="44"/>44</td>
+</tr>
+</tbody></table>
+</div>
+</div><hr style="PAGE-BREAK-AFTER:always;margin-bottom:30px;"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Graduation and transfer-out rates</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="7">Calculation of graduation and transfer-out rates</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 1 of 2</td><td class="sc-tb-c" colspan="6">Cohort Year 2001</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">Revised cohort</td><td class="sc-tb-c">Total exclusions</td><td class="sc-tb-c">Total completers within 150%</td><td class="sc-tb-c">Total transfer-out<br/>students</td><td class="sc-tb-c">Graduation rate</td><td class="sc-tb-c">Transfer-out rate</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="7">Men</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Nonresident alien</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8283" name="hd_f8283" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8284" name="hd_f8284" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8285" name="hd_f8285" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8286" name="hd_f8286" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8287" name="hd_f8287" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8288" name="hd_f8288" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Black, non-Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8289" name="hd_f8289" type="hidden" value="44"/>44</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8290" name="hd_f8290" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8291" name="hd_f8291" type="hidden" value="19"/>19</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8292" name="hd_f8292" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8293" name="hd_f8293" type="hidden" value="43"/>43</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8294" name="hd_f8294" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">American Indian/Alaska Native</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8295" name="hd_f8295" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8296" name="hd_f8296" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8297" name="hd_f8297" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8298" name="hd_f8298" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8299" name="hd_f8299" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8300" name="hd_f8300" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Asian/Pacific Islander</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8301" name="hd_f8301" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8302" name="hd_f8302" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8303" name="hd_f8303" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8304" name="hd_f8304" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8305" name="hd_f8305" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8306" name="hd_f8306" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8307" name="hd_f8307" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8308" name="hd_f8308" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8309" name="hd_f8309" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8310" name="hd_f8310" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8311" name="hd_f8311" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8312" name="hd_f8312" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">White, non-Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8313" name="hd_f8313" type="hidden" value="1"/>1</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8314" name="hd_f8314" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8315" name="hd_f8315" type="hidden" value="1"/>1</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8316" name="hd_f8316" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8317" name="hd_f8317" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8318" name="hd_f8318" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Race/ethnicity unknown</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8319" name="hd_f8319" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8320" name="hd_f8320" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8321" name="hd_f8321" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8322" name="hd_f8322" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8323" name="hd_f8323" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8324" name="hd_f8324" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total men</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8325" name="hd_f8325" type="hidden" value="45"/>45</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8326" name="hd_f8326" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8327" name="hd_f8327" type="hidden" value="20"/>20</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8328" name="hd_f8328" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8329" name="hd_f8329" type="hidden" value="44"/>44</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8330" name="hd_f8330" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="7">Women</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Nonresident alien</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8331" name="hd_f8331" type="hidden" value="4"/>4</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8332" name="hd_f8332" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8333" name="hd_f8333" type="hidden" value="4"/>4</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8334" name="hd_f8334" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8335" name="hd_f8335" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8336" name="hd_f8336" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Black, non-Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8337" name="hd_f8337" type="hidden" value="97"/>97</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8338" name="hd_f8338" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8339" name="hd_f8339" type="hidden" value="54"/>54</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8340" name="hd_f8340" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8341" name="hd_f8341" type="hidden" value="56"/>56</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8342" name="hd_f8342" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">American Indian/Alaska Native</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8343" name="hd_f8343" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8344" name="hd_f8344" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8345" name="hd_f8345" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8346" name="hd_f8346" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8347" name="hd_f8347" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8348" name="hd_f8348" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Asian/Pacific Islander</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8349" name="hd_f8349" type="hidden" value="2"/>2</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8350" name="hd_f8350" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8351" name="hd_f8351" type="hidden" value="2"/>2</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8352" name="hd_f8352" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8353" name="hd_f8353" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8354" name="hd_f8354" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8355" name="hd_f8355" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8356" name="hd_f8356" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8357" name="hd_f8357" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8358" name="hd_f8358" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8359" name="hd_f8359" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8360" name="hd_f8360" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">White, non-Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8361" name="hd_f8361" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8362" name="hd_f8362" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8363" name="hd_f8363" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8364" name="hd_f8364" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8365" name="hd_f8365" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8366" name="hd_f8366" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Race/ethnicity unknown</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8367" name="hd_f8367" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8368" name="hd_f8368" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8369" name="hd_f8369" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8370" name="hd_f8370" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8371" name="hd_f8371" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8372" name="hd_f8372" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total women</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8373" name="hd_f8373" type="hidden" value="103"/>103</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8374" name="hd_f8374" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8375" name="hd_f8375" type="hidden" value="60"/>60</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8376" name="hd_f8376" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8377" name="hd_f8377" type="hidden" value="58"/>58</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8378" name="hd_f8378" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="7">Total (men and women)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Nonresident alien</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8379" name="hd_f8379" type="hidden" value="4"/>4</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8380" name="hd_f8380" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8381" name="hd_f8381" type="hidden" value="4"/>4</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8382" name="hd_f8382" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8383" name="hd_f8383" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8384" name="hd_f8384" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Black, non-Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8385" name="hd_f8385" type="hidden" value="141"/>141</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8386" name="hd_f8386" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8387" name="hd_f8387" type="hidden" value="73"/>73</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8388" name="hd_f8388" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8389" name="hd_f8389" type="hidden" value="52"/>52</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8390" name="hd_f8390" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">American Indian/Alaska Native</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8391" name="hd_f8391" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8392" name="hd_f8392" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8393" name="hd_f8393" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8394" name="hd_f8394" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8395" name="hd_f8395" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8396" name="hd_f8396" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Asian/Pacific Islander</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8397" name="hd_f8397" type="hidden" value="2"/>2</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8398" name="hd_f8398" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8399" name="hd_f8399" type="hidden" value="2"/>2</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8400" name="hd_f8400" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8401" name="hd_f8401" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8402" name="hd_f8402" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8403" name="hd_f8403" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8404" name="hd_f8404" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8405" name="hd_f8405" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8406" name="hd_f8406" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8407" name="hd_f8407" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8408" name="hd_f8408" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">White, non-Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8409" name="hd_f8409" type="hidden" value="1"/>1</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8410" name="hd_f8410" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8411" name="hd_f8411" type="hidden" value="1"/>1</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8412" name="hd_f8412" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8413" name="hd_f8413" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8414" name="hd_f8414" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Race/ethnicity unknown</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8415" name="hd_f8415" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8416" name="hd_f8416" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8417" name="hd_f8417" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8418" name="hd_f8418" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8419" name="hd_f8419" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8420" name="hd_f8420" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8421" name="hd_f8421" type="hidden" value="148"/>148</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8422" name="hd_f8422" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8423" name="hd_f8423" type="hidden" value="80"/>80</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8424" name="hd_f8424" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8425" name="hd_f8425" type="hidden" value="54"/>54</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8426" name="hd_f8426" type="hidden" value="0"/>0</td>
+</tr>
+</tbody></table>
+</div>
+</div><hr style="PAGE-BREAK-AFTER:always;margin-bottom:30px;"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Graduation and transfer-out rates by length of time to degree</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="9">Calculation of graduation rates</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 2 of 2</td><td class="sc-tb-c" colspan="8">Cohort Year 2001</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c">Revised cohort</td><td class="sc-tb-c">Total exclusions</td><td class="sc-tb-c">Completed bachelor's <br/>degree in 4 or less years</td><td class="sc-tb-c">Completed bachelor's <br/>degree in 5 or less years</td><td class="sc-tb-c">Completed bachelor's <br/> degree in 6 or less years</td><td class="sc-tb-c">4 year graduation rate</td><td class="sc-tb-c">5 year graduation rate</td><td class="sc-tb-c">6 year graduation rate</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="9">Men</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Nonresident alien</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10218" name="hd_f10218" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10219" name="hd_f10219" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10220" name="hd_f10220" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10221" name="hd_f10221" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10222" name="hd_f10222" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10223" name="hd_f10223" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10224" name="hd_f10224" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10225" name="hd_f10225" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Black, non-Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10226" name="hd_f10226" type="hidden" value="44"/>44</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10227" name="hd_f10227" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10228" name="hd_f10228" type="hidden" value="16"/>16</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10229" name="hd_f10229" type="hidden" value="18"/>18</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10230" name="hd_f10230" type="hidden" value="19"/>19</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10231" name="hd_f10231" type="hidden" value="36"/>36</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10232" name="hd_f10232" type="hidden" value="41"/>41</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10233" name="hd_f10233" type="hidden" value="43"/>43</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">American Indian/Alaska Native</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10234" name="hd_f10234" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10235" name="hd_f10235" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10236" name="hd_f10236" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10237" name="hd_f10237" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10238" name="hd_f10238" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10239" name="hd_f10239" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10240" name="hd_f10240" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10241" name="hd_f10241" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Asian/Pacific Islander</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10242" name="hd_f10242" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10243" name="hd_f10243" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10244" name="hd_f10244" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10245" name="hd_f10245" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10246" name="hd_f10246" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10247" name="hd_f10247" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10248" name="hd_f10248" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10249" name="hd_f10249" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10250" name="hd_f10250" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10251" name="hd_f10251" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10252" name="hd_f10252" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10253" name="hd_f10253" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10254" name="hd_f10254" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10255" name="hd_f10255" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10256" name="hd_f10256" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10257" name="hd_f10257" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">White, non-Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10258" name="hd_f10258" type="hidden" value="1"/>1</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10259" name="hd_f10259" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10260" name="hd_f10260" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10261" name="hd_f10261" type="hidden" value="1"/>1</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10262" name="hd_f10262" type="hidden" value="1"/>1</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10263" name="hd_f10263" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10264" name="hd_f10264" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10265" name="hd_f10265" type="hidden" value="100"/>100</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Race/ethnicity unknown</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10266" name="hd_f10266" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10267" name="hd_f10267" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10268" name="hd_f10268" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10269" name="hd_f10269" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10270" name="hd_f10270" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10271" name="hd_f10271" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10272" name="hd_f10272" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10273" name="hd_f10273" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total men</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10274" name="hd_f10274" type="hidden" value="45"/>45</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10275" name="hd_f10275" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10276" name="hd_f10276" type="hidden" value="16"/>16</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10277" name="hd_f10277" type="hidden" value="19"/>19</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10278" name="hd_f10278" type="hidden" value="20"/>20</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10279" name="hd_f10279" type="hidden" value="36"/>36</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10280" name="hd_f10280" type="hidden" value="42"/>42</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10281" name="hd_f10281" type="hidden" value="44"/>44</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="9">Women</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Nonresident alien</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10282" name="hd_f10282" type="hidden" value="4"/>4</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10283" name="hd_f10283" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10284" name="hd_f10284" type="hidden" value="3"/>3</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10285" name="hd_f10285" type="hidden" value="4"/>4</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10286" name="hd_f10286" type="hidden" value="4"/>4</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10287" name="hd_f10287" type="hidden" value="75"/>75</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10288" name="hd_f10288" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10289" name="hd_f10289" type="hidden" value="100"/>100</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Black, non-Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10290" name="hd_f10290" type="hidden" value="97"/>97</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10291" name="hd_f10291" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10292" name="hd_f10292" type="hidden" value="43"/>43</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10293" name="hd_f10293" type="hidden" value="53"/>53</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10294" name="hd_f10294" type="hidden" value="54"/>54</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10295" name="hd_f10295" type="hidden" value="44"/>44</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10296" name="hd_f10296" type="hidden" value="55"/>55</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10297" name="hd_f10297" type="hidden" value="56"/>56</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">American Indian/Alaska Native</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10298" name="hd_f10298" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10299" name="hd_f10299" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10300" name="hd_f10300" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10301" name="hd_f10301" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10302" name="hd_f10302" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10303" name="hd_f10303" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10304" name="hd_f10304" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10305" name="hd_f10305" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Asian/Pacific Islander</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10306" name="hd_f10306" type="hidden" value="2"/>2</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10307" name="hd_f10307" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10308" name="hd_f10308" type="hidden" value="2"/>2</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10309" name="hd_f10309" type="hidden" value="2"/>2</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10310" name="hd_f10310" type="hidden" value="2"/>2</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10311" name="hd_f10311" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10312" name="hd_f10312" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10313" name="hd_f10313" type="hidden" value="100"/>100</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10314" name="hd_f10314" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10315" name="hd_f10315" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10316" name="hd_f10316" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10317" name="hd_f10317" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10318" name="hd_f10318" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10319" name="hd_f10319" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10320" name="hd_f10320" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10321" name="hd_f10321" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">White, non-Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10322" name="hd_f10322" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10323" name="hd_f10323" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10324" name="hd_f10324" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10325" name="hd_f10325" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10326" name="hd_f10326" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10327" name="hd_f10327" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10328" name="hd_f10328" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10329" name="hd_f10329" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Race/ethnicity unknown</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10330" name="hd_f10330" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10331" name="hd_f10331" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10332" name="hd_f10332" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10333" name="hd_f10333" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10334" name="hd_f10334" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10335" name="hd_f10335" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10336" name="hd_f10336" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10337" name="hd_f10337" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total women</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10338" name="hd_f10338" type="hidden" value="103"/>103</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10339" name="hd_f10339" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10340" name="hd_f10340" type="hidden" value="48"/>48</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10341" name="hd_f10341" type="hidden" value="59"/>59</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10342" name="hd_f10342" type="hidden" value="60"/>60</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10343" name="hd_f10343" type="hidden" value="47"/>47</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10344" name="hd_f10344" type="hidden" value="57"/>57</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10345" name="hd_f10345" type="hidden" value="58"/>58</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="9">Total (men and women)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Nonresident alien</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10346" name="hd_f10346" type="hidden" value="4"/>4</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10347" name="hd_f10347" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10348" name="hd_f10348" type="hidden" value="3"/>3</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10349" name="hd_f10349" type="hidden" value="4"/>4</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10350" name="hd_f10350" type="hidden" value="4"/>4</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10351" name="hd_f10351" type="hidden" value="75"/>75</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10352" name="hd_f10352" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10353" name="hd_f10353" type="hidden" value="100"/>100</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Black, non-Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10354" name="hd_f10354" type="hidden" value="141"/>141</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10355" name="hd_f10355" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10356" name="hd_f10356" type="hidden" value="59"/>59</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10357" name="hd_f10357" type="hidden" value="71"/>71</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10358" name="hd_f10358" type="hidden" value="73"/>73</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10359" name="hd_f10359" type="hidden" value="42"/>42</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10360" name="hd_f10360" type="hidden" value="50"/>50</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10361" name="hd_f10361" type="hidden" value="52"/>52</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">American Indian/Alaska Native</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10362" name="hd_f10362" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10363" name="hd_f10363" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10364" name="hd_f10364" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10365" name="hd_f10365" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10366" name="hd_f10366" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10367" name="hd_f10367" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10368" name="hd_f10368" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10369" name="hd_f10369" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Asian/Pacific Islander</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10370" name="hd_f10370" type="hidden" value="2"/>2</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10371" name="hd_f10371" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10372" name="hd_f10372" type="hidden" value="2"/>2</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10373" name="hd_f10373" type="hidden" value="2"/>2</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10374" name="hd_f10374" type="hidden" value="2"/>2</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10375" name="hd_f10375" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10376" name="hd_f10376" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10377" name="hd_f10377" type="hidden" value="100"/>100</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10378" name="hd_f10378" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10379" name="hd_f10379" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10380" name="hd_f10380" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10381" name="hd_f10381" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10382" name="hd_f10382" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10383" name="hd_f10383" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10384" name="hd_f10384" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10385" name="hd_f10385" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">White, non-Hispanic</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10386" name="hd_f10386" type="hidden" value="1"/>1</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10387" name="hd_f10387" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10388" name="hd_f10388" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10389" name="hd_f10389" type="hidden" value="1"/>1</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10390" name="hd_f10390" type="hidden" value="1"/>1</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10391" name="hd_f10391" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10392" name="hd_f10392" type="hidden" value="100"/>100</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10393" name="hd_f10393" type="hidden" value="100"/>100</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Race/ethnicity unknown</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10394" name="hd_f10394" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10395" name="hd_f10395" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10396" name="hd_f10396" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10397" name="hd_f10397" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10398" name="hd_f10398" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10399" name="hd_f10399" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10400" name="hd_f10400" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10401" name="hd_f10401" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10402" name="hd_f10402" type="hidden" value="148"/>148</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10403" name="hd_f10403" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10404" name="hd_f10404" type="hidden" value="64"/>64</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10405" name="hd_f10405" type="hidden" value="78"/>78</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10406" name="hd_f10406" type="hidden" value="80"/>80</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10407" name="hd_f10407" type="hidden" value="43"/>43</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10408" name="hd_f10408" type="hidden" value="53"/>53</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f10409" name="hd_f10409" type="hidden" value="54"/>54</td>
+</tr>
+</tbody></table>
+</div>
+</div><hr style="PAGE-BREAK-AFTER:always;margin-bottom:30px;"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Graduation rates</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="6">Calculation of 4-year average rates: Cohort adjustment</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 1 of 3</td><td class="sc-tb-c">1998</td><td class="sc-tb-c">1999</td><td class="sc-tb-c">2000</td><td class="sc-tb-c">2001</td><td class="sc-tb-c">4-year Total</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">Men</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Revised cohort (I,01)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8130" name="hd_f8130" type="hidden" value="67"/>67</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8131" name="hd_f8131" type="hidden" value="69"/>69</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8132" name="hd_f8132" type="hidden" value="69"/>69</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8427" name="hd_f8427" type="hidden" value="45"/>45</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8428" name="hd_f8428" type="hidden" value="250"/>250</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total exclusions (II,45)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8133" name="hd_f8133" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8134" name="hd_f8134" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8135" name="hd_f8135" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8429" name="hd_f8429" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8430" name="hd_f8430" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total exclusions (III,45)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8136" name="hd_f8136" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8137" name="hd_f8137" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8138" name="hd_f8138" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8431" name="hd_f8431" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8432" name="hd_f8432" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Adjusted cohort</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8139" name="hd_f8139" type="hidden" value="67"/>67</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8140" name="hd_f8140" type="hidden" value="69"/>69</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8141" name="hd_f8141" type="hidden" value="69"/>69</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8433" name="hd_f8433" type="hidden" value="45"/>45</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8434" name="hd_f8434" type="hidden" value="250"/>250</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="6">Women</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Revised cohort (I,01)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8142" name="hd_f8142" type="hidden" value="157"/>157</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8143" name="hd_f8143" type="hidden" value="172"/>172</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8144" name="hd_f8144" type="hidden" value="170"/>170</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8435" name="hd_f8435" type="hidden" value="103"/>103</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8436" name="hd_f8436" type="hidden" value="602"/>602</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total exclusions (II,45)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8145" name="hd_f8145" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8146" name="hd_f8146" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8147" name="hd_f8147" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8437" name="hd_f8437" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8438" name="hd_f8438" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total exclusions (III,45)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8148" name="hd_f8148" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8149" name="hd_f8149" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8150" name="hd_f8150" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8439" name="hd_f8439" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8440" name="hd_f8440" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Adjusted cohort</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8151" name="hd_f8151" type="hidden" value="157"/>157</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8152" name="hd_f8152" type="hidden" value="172"/>172</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8153" name="hd_f8153" type="hidden" value="170"/>170</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8441" name="hd_f8441" type="hidden" value="103"/>103</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8442" name="hd_f8442" type="hidden" value="602"/>602</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">Total (men and women)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Revised cohort (I,01)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8154" name="hd_f8154" type="hidden" value="224"/>224</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8155" name="hd_f8155" type="hidden" value="241"/>241</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8156" name="hd_f8156" type="hidden" value="239"/>239</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8443" name="hd_f8443" type="hidden" value="148"/>148</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8444" name="hd_f8444" type="hidden" value="852"/>852</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total exclusions (II,45)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8157" name="hd_f8157" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8158" name="hd_f8158" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8159" name="hd_f8159" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8445" name="hd_f8445" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8446" name="hd_f8446" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total exclusions (III,45)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8160" name="hd_f8160" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8161" name="hd_f8161" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8162" name="hd_f8162" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8447" name="hd_f8447" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8448" name="hd_f8448" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Adjusted cohort</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8163" name="hd_f8163" type="hidden" value="224"/>224</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8164" name="hd_f8164" type="hidden" value="241"/>241</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8165" name="hd_f8165" type="hidden" value="239"/>239</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8449" name="hd_f8449" type="hidden" value="148"/>148</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8450" name="hd_f8450" type="hidden" value="852"/>852</td>
+</tr>
+</tbody></table>
+</div>
+</div><hr style="PAGE-BREAK-AFTER:always;margin-bottom:30px;"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Graduation rates</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="6">Calculation of 4-year average rates: Completers within 150% of normal time</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 2 of 3</td><td class="sc-tb-c">1998</td><td class="sc-tb-c">1999</td><td class="sc-tb-c">2000</td><td class="sc-tb-c">2001</td><td class="sc-tb-c">4-year Total</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">Men</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">&lt;2-yr completers (II,11)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8184" name="hd_f8184" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8185" name="hd_f8185" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8186" name="hd_f8186" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8451" name="hd_f8451" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8452" name="hd_f8452" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">2&lt;4-yr completers (II,12)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8187" name="hd_f8187" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8188" name="hd_f8188" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8189" name="hd_f8189" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8453" name="hd_f8453" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8454" name="hd_f8454" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Bachelor's completers (II,18)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8190" name="hd_f8190" type="hidden" value="41"/>41</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8191" name="hd_f8191" type="hidden" value="30"/>30</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8192" name="hd_f8192" type="hidden" value="30"/>30</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8455" name="hd_f8455" type="hidden" value="20"/>20</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8456" name="hd_f8456" type="hidden" value="121"/>121</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">&lt;2-yr completers (III,11)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8193" name="hd_f8193" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8194" name="hd_f8194" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8195" name="hd_f8195" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8457" name="hd_f8457" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8458" name="hd_f8458" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">2&lt;4-yr completers (III,12)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8196" name="hd_f8196" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8197" name="hd_f8197" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8198" name="hd_f8198" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8459" name="hd_f8459" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8460" name="hd_f8460" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Bachelor's completers (III,18)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8199" name="hd_f8199" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8200" name="hd_f8200" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8201" name="hd_f8201" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8461" name="hd_f8461" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8462" name="hd_f8462" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total completers within 150%</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8202" name="hd_f8202" type="hidden" value="41"/>41</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8203" name="hd_f8203" type="hidden" value="30"/>30</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8204" name="hd_f8204" type="hidden" value="30"/>30</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8463" name="hd_f8463" type="hidden" value="20"/>20</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8464" name="hd_f8464" type="hidden" value="121"/>121</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">Women</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">&lt;2-yr completers (II,11)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8205" name="hd_f8205" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8206" name="hd_f8206" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8207" name="hd_f8207" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8465" name="hd_f8465" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8466" name="hd_f8466" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">2&lt;4-yr completers (II,12)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8208" name="hd_f8208" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8209" name="hd_f8209" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8210" name="hd_f8210" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8467" name="hd_f8467" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8468" name="hd_f8468" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Bachelor's completers (II,18)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8211" name="hd_f8211" type="hidden" value="102"/>102</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8212" name="hd_f8212" type="hidden" value="109"/>109</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8213" name="hd_f8213" type="hidden" value="106"/>106</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8469" name="hd_f8469" type="hidden" value="60"/>60</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8470" name="hd_f8470" type="hidden" value="377"/>377</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">&lt;2-yr completers (III,11)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8214" name="hd_f8214" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8215" name="hd_f8215" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8216" name="hd_f8216" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8471" name="hd_f8471" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8472" name="hd_f8472" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">2&lt;4-yr completers (III,12)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8217" name="hd_f8217" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8218" name="hd_f8218" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8219" name="hd_f8219" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8473" name="hd_f8473" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8474" name="hd_f8474" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Bachelor's completers (III,18)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8220" name="hd_f8220" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8221" name="hd_f8221" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8222" name="hd_f8222" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8475" name="hd_f8475" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8476" name="hd_f8476" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total completers within 150%</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8223" name="hd_f8223" type="hidden" value="102"/>102</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8224" name="hd_f8224" type="hidden" value="109"/>109</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8225" name="hd_f8225" type="hidden" value="106"/>106</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8477" name="hd_f8477" type="hidden" value="60"/>60</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8478" name="hd_f8478" type="hidden" value="377"/>377</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">Total (men and women)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">&lt;2-yr completers (II,11)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8226" name="hd_f8226" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8227" name="hd_f8227" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8228" name="hd_f8228" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8479" name="hd_f8479" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8480" name="hd_f8480" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">2&lt;4-yr completers (II,12)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8229" name="hd_f8229" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8230" name="hd_f8230" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8231" name="hd_f8231" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8481" name="hd_f8481" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8482" name="hd_f8482" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Bachelor's completers (II,18)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8232" name="hd_f8232" type="hidden" value="143"/>143</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8233" name="hd_f8233" type="hidden" value="139"/>139</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8234" name="hd_f8234" type="hidden" value="136"/>136</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8483" name="hd_f8483" type="hidden" value="80"/>80</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8484" name="hd_f8484" type="hidden" value="498"/>498</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">&lt;2-yr completers (III,11)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8235" name="hd_f8235" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8236" name="hd_f8236" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8237" name="hd_f8237" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8485" name="hd_f8485" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8486" name="hd_f8486" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">2&lt;4-yr completers (III,12)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8238" name="hd_f8238" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8239" name="hd_f8239" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8240" name="hd_f8240" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8487" name="hd_f8487" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8488" name="hd_f8488" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Bachelor's completers (III,18)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8241" name="hd_f8241" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8242" name="hd_f8242" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8243" name="hd_f8243" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8489" name="hd_f8489" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8490" name="hd_f8490" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total completers within 150%</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8244" name="hd_f8244" type="hidden" value="143"/>143</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8245" name="hd_f8245" type="hidden" value="139"/>139</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8246" name="hd_f8246" type="hidden" value="136"/>136</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8491" name="hd_f8491" type="hidden" value="80"/>80</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8492" name="hd_f8492" type="hidden" value="498"/>498</td>
+</tr>
+</tbody></table>
+</div>
+</div><hr style="PAGE-BREAK-AFTER:always;margin-bottom:30px;"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Graduation rates</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-c" colspan="6">Calculation of 4-year average rates:  Transfer-out students and rate calculations</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Screen 3 of 3</td><td class="sc-tb-c">1998</td><td class="sc-tb-c">1999</td><td class="sc-tb-c">2000</td><td class="sc-tb-c">2001</td><td class="sc-tb-c">4-year Total</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">Men</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Transfer-out students (II,30)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8256" name="hd_f8256" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8257" name="hd_f8257" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8258" name="hd_f8258" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8493" name="hd_f8493" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8494" name="hd_f8494" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Transfer-out students (III,30)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8259" name="hd_f8259" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8260" name="hd_f8260" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8261" name="hd_f8261" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8495" name="hd_f8495" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8496" name="hd_f8496" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total transfer-out students</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8262" name="hd_f8262" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8263" name="hd_f8263" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8264" name="hd_f8264" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8497" name="hd_f8497" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8498" name="hd_f8498" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">Women</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Transfer-out students (II,30)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8265" name="hd_f8265" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8266" name="hd_f8266" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8267" name="hd_f8267" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8499" name="hd_f8499" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8500" name="hd_f8500" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Transfer-out students (III,30)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8268" name="hd_f8268" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8269" name="hd_f8269" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8270" name="hd_f8270" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8501" name="hd_f8501" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8502" name="hd_f8502" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total transfer-out students</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8271" name="hd_f8271" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8272" name="hd_f8272" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8273" name="hd_f8273" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8503" name="hd_f8503" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8504" name="hd_f8504" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">Total (men and women)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Transfer-out students (II,30)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8274" name="hd_f8274" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8275" name="hd_f8275" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8276" name="hd_f8276" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8505" name="hd_f8505" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8506" name="hd_f8506" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Transfer-out students (III,30)</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8277" name="hd_f8277" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8278" name="hd_f8278" type="hidden" value=""/></td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8279" name="hd_f8279" type="hidden" value=""/></td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8507" name="hd_f8507" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8508" name="hd_f8508" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Total transfer-out students</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8280" name="hd_f8280" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8281" name="hd_f8281" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f sc-tb-r"> <input id="hd_f8282" name="hd_f8282" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8509" name="hd_f8509" type="hidden" value="0"/>0</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8510" name="hd_f8510" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="6"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5">4-year average Student-Right-to-Know completion or graduation rate calculation</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8511" name="hd_f8511" type="hidden" value="58"/>58</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="6">   (Total Completers within 150% / Adjusted Cohort)</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5">4-year average Student-Right-to-Know transfer-out rate calculation</td><td class="sc-dbcalc sc-tb-r" nowrap="true"> <input id="hd_f8512" name="hd_f8512" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6">   (Total Transfer-out Students / Adjusted Cohort)</td>
+</tr>
+</tbody></table>
+</div>
+</div><hr style="PAGE-BREAK-AFTER:always;margin-bottom:30px;"/>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+<tr>
+<td align="left">
+</td>
+</tr>
+<tr>
+<td>
+</td>
+</tr>
+<tr>
+<td> </td>
+</tr>
+<tr>
+<td align="left">
+<table align="left" border="0" cellpadding="0" cellspacing="0" id="Table2" width="650">
+<tbody><tr>
+<td align="center">
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+</tbody></table></div></div>
+</div>
+</form>
+<div class="top"><a href="#top">Back to top</a></div>
+</body></html>

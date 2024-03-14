@@ -1,0 +1,1276 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>
+	Reported Data
+</title>
+<style>
+        .page-header {
+            font-size: 16px;
+        }
+
+        @media print
+        {    
+            .page-header {
+                display: none;
+            }
+
+            .page-header-wrapper {
+                display: none;
+            }
+        }
+
+        select {
+            padding: 4px 4px;
+            font-size: 15px;
+            border-radius: 6px;
+        }
+
+        .mr-2 {
+            margin-right: 0.5em;
+        }
+
+        .mr-4 {
+            margin-right: 1em;
+        }
+
+        .mr-8 {
+            margin-right: 2em;
+        }
+
+        .btn {
+            border: 1px solid #999;
+            padding: 1px 10px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .loading-data {
+            margin: 20px auto 0 auto;
+            width: 150px;
+            text-align: center;
+        }
+
+        #top {
+            position: relative;
+            top: -100px;
+        }
+
+        .top {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            padding: 5px 5px;
+            background-color: #eee;
+            text-align: center;
+        }
+
+        .top a:link,
+        .top a:visited,
+        .top a:hover {
+            text-decoration: none;
+            color: #333;
+        }
+
+        .no-survey-found {
+            background-color: #f7f7f7;
+            padding: 20px 20px;
+            font-size: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .no-survey-found.show {
+            display: block;
+        }
+
+        #survey_content {
+            border:0px solid red;
+            margin-top: 20px;
+            padding-top: 10px;
+        }
+        .note-message {
+            padding: 8px 12px;
+            background-color: #fcfbec;
+            border:1px solid #c6c4a5;
+            border-radius:4px;
+            display:none;
+            font-size:13px;
+        }
+        .note-message.show {
+            display: block;
+        }
+    </style>
+<script src="scripts/jquery-3.6.0.js" type="text/javascript"></script>
+<script>
+        let year = 2010;
+        let prevYear = 2010;
+        let unitId = 220181;
+        let surveyNumber = 9;
+
+        function removeFacsimileStyleFiles() {
+            $('[data-year="2020"]').remove();
+            $('[data-year="2006"]').remove();
+            $('[data-year="2005"]').remove();
+            $('[data-year="20002004"]').remove();
+        }
+
+        function addFacsimileStyleFile() {
+            // update year
+            if (year >= 2020) {
+                addCssFile('facsimile/assets/css/styles.css', '2020');
+            } else if (year >= 2000 && year <= 2004) {
+                addCssFile('styles/fm_style00_04.css', '20002004');
+                addCssFile('styles/fm_style00_04_fixes.css', '20002004');
+            } else if (year === 2005) {
+                addCssFile('styles/fm_style05.css', '2005');
+            }
+            else if (year > 2005) {
+                addCssFile('styles/facsimile.css', '2006');
+            }
+        }
+
+        function addCssFile(fileName, dataYearAttr) {
+            var cssRef = document.createElement("link");
+            cssRef.setAttribute("rel", "stylesheet");
+            cssRef.setAttribute("type", "text/css");
+            cssRef.setAttribute("href", fileName);
+            cssRef.setAttribute('data-year', dataYearAttr);
+            document.getElementsByTagName("head")[0].appendChild(cssRef)
+        }
+
+        function loadContent() {
+            $('#survey_content').html('<div class="loading-data"><h2>Loading data...</h2></div>');
+            $('.no-survey-found').removeClass('show');
+            $('#data-revised-note').removeClass('show');
+            $('#data-not-revised-note').removeClass('show');
+           
+            $.ajax({
+                url: 'FacsimileView.aspx?action=data&year=' + year + '&prevYear=' + prevYear + '&unitId=' + unitId + '&surveyNumber=' + surveyNumber,
+                type: "GET",
+                cache: false,
+                success: function (data) {
+                    prevYear = year;
+                    var json = JSON.parse(data);
+                    $('#survey_content').html(json.SurveyHtml);
+
+                    //***************
+                    $('#data-not-revised-note').removeClass('show');
+                    $('#latest-year-data-not-revised-note').removeClass('show');
+                    $('#pre-2014-data-not-revised-note').removeClass('show');
+                    $('#data-revised-note').removeClass('show');
+
+                    // Message about revised data:
+                    if (year >= 2022 ) {
+                        $('#latest-year-data-not-revised-note').addClass('show');
+                    }
+                    else if (year >= 2014 && year<=2021) {
+
+                        if (json.DataRevised === true)
+                            $('#data-revised-note').addClass('show');
+                        else //if (json.DataRevised === false)
+                            $('#data-not-revised-note').addClass('show');
+                    }
+                    else
+                        $('#pre-2014-data-not-revised-note').addClass('show');
+
+
+                    const container = document.getElementById('survey_content');
+
+                    // Get all buttons within the container
+                    const buttons = container.querySelectorAll('button');
+
+                    // Loop through each button and disable it
+                    buttons.forEach(button => {
+                        button.disabled = true;
+                    });
+
+
+                    if (json.Surveys) {
+                        // we need to create new values in Survey dropdown
+                        let dropdown = $('#select-surveys')[0];
+                        // first remove all elements
+                        while (dropdown.options.length > 0)
+                            dropdown.remove(0);
+
+                        let surveyNumbers = Object.keys(json.Surveys);
+                        let surveyNumberExistsInDifferentYear = false;
+                        for (let i = 0; i < surveyNumbers.length; i++) {
+                            let opt = document.createElement('option');
+                            opt.value = surveyNumbers[i];
+                            if (surveyNumbers[i] == surveyNumber) {
+                                surveyNumberExistsInDifferentYear = true;
+                                opt.selected = true;
+                            }
+                            opt.innerHTML = json.Surveys[surveyNumbers[i]];
+                            dropdown.appendChild(opt);
+                        }
+                        // if survey does not exists, add empty <option>
+                        if (surveyNumberExistsInDifferentYear == false) {
+                            let opt = document.createElement('option');
+                            opt.value = '';
+                            opt.innerHTML = 'Select a survey';
+                            opt.selected = true;
+                            dropdown.add(opt, dropdown.options[0]);
+                            $('.no-survey-found').addClass('show');
+                            $('#data-not-revised-note').removeClass('show');
+                        }                       
+                            
+                    }
+
+                    // Update url to reflect selected year/survey
+                    //let newUrl = new URL(window.location.href);
+                    //let params = new URLSearchParams(newUrl.search);
+                    
+                   
+                    //params.set('year', year);
+                    //params.set('surveyNumber', surveyNumber)
+
+
+                    let searchParams = new URLSearchParams(window.location.search);
+
+                    searchParams.delete("surveynumber");
+                    searchParams.delete("year");
+                    searchParams.set('year', year);
+                    searchParams.set('surveyNumber', surveyNumber)
+
+                    if (window.history.replaceState) {
+                        const url = window.location.protocol
+                            + "//" + window.location.host
+                            + window.location.pathname
+                            + "?"
+                            + searchParams.toString();
+
+                        window.history.replaceState({
+                            path: url
+                        }, "", url)
+                    }
+
+
+                },
+                error: function (xhr, err) {
+                    console.log("Status: " + xhr.status + "\nResponse Text:" + xhr.responseText);
+                }
+            });
+        }
+
+        function selectSurvey(ev) {
+            surveyNumber = ev.target.value;
+            loadContent();
+        }
+
+        function selectYear(ev) {
+            year = +ev.target.value;
+            loadContent();
+
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+        }
+
+        function updateURLParameter(url, param, paramVal) {
+            let TheAnchor = null;
+            let newAdditionalURL = "";
+            let tempArray = url.split("?");
+            let baseURL = tempArray[0];
+            let additionalURL = tempArray[1];
+            let temp = "";
+
+            if (additionalURL) {
+                var tmpAnchor = additionalURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+                if (TheAnchor)
+                    additionalURL = TheParams;
+
+                tempArray = additionalURL.split("&");
+
+                for (var i = 0; i < tempArray.length; i++) {
+                    if (tempArray[i].split('=')[0] != param) {
+                        newAdditionalURL += temp + tempArray[i];
+                        temp = "&";
+                    }
+                }
+            }
+            else {
+                var tmpAnchor = baseURL.split("#");
+                var TheParams = tmpAnchor[0];
+                TheAnchor = tmpAnchor[1];
+
+                if (TheParams)
+                    baseURL = TheParams;
+            }
+
+            if (TheAnchor)
+                paramVal += "#" + TheAnchor;
+
+            var rows_txt = temp + "" + param + "=" + paramVal;
+            return baseURL + "?" + newAdditionalURL + rows_txt;
+        }
+
+        
+
+        $(document).ready(function () {
+            removeFacsimileStyleFiles();
+            addFacsimileStyleFile();
+            loadContent();
+        });
+
+        function printPage() {
+            window.print();
+        }
+    </script>
+<link data-year="2006" href="styles/facsimile.css" rel="stylesheet" type="text/css"/></head>
+<body>
+<div class="page-header-wrapper" style="background-color: #eee; padding: 18px 6px;">
+<div class="page-header" style="width: 90%; margin: 0 auto;">
+<div style="display: flex; align-items: center!important;">
+<div class="mr-4">Reported Data: Fisk University </div>
+<div class="mr-4">|</div>
+<div class="mr-2">Select year:</div>
+<div class="mr-4">
+<select onchange="selectYear(event)">
+<option value="2022">2022</option>
+<option value="2021">2021</option>
+<option value="2020">2020</option>
+<option value="2019">2019</option>
+<option value="2018">2018</option>
+<option value="2017">2017</option>
+<option value="2016">2016</option>
+<option value="2015">2015</option>
+<option value="2014">2014</option>
+<option value="2013">2013</option>
+<option value="2012">2012</option>
+<option value="2011">2011</option>
+<option selected="" value="2010">2010</option>
+<option value="2009">2009</option>
+<option value="2008">2008</option>
+<option value="2007">2007</option>
+<option value="2006">2006</option>
+<option value="2005">2005</option>
+<option value="2004">2004</option>
+<option value="2003">2003</option>
+<option value="2002">2002</option>
+<option value="2001">2001</option>
+</select>
+</div>
+<div class="mr-2">Select survey:</div>
+<div class="mr-2">
+<select id="select-surveys" onchange="selectSurvey(event)">
+<option value="1">Institutional Characteristics</option>
+<option value="15">Fall Enrollment</option>
+<option value="14">12-Month Enrollment</option>
+<option value="3">Completions</option>
+<option value="8">Graduation Rates</option>
+<option value="22">GR200</option>
+<option value="7">Student Financial Aid and Net Price</option>
+<option value="6">Finance</option>
+<option selected="" value="9">Human Resources</option>
+</select>
+</div>
+<div style="flex: 1 1 auto!important;"> </div>
+<div>
+<button class="mr-4 btn">
+<img onclick="printPage()" src="images/printer-svgrepo-com.svg" style="width: 15px"/>
+</button>
+<a href="Facsimile.aspx?unitId=220181">
+<img src="images/icon_close.svg" style="width: 25px"/>
+</a>
+</div>
+</div>
+</div>
+</div>
+<a id="top"></a>
+<form action="./facsimileView.aspx?unitid=220181&amp;surveynumber=9&amp;year=2010&amp;goToReportId=6" id="form1" method="post" name="form1">
+<div>
+<input id="__VIEWSTATE" name="__VIEWSTATE" type="hidden" value="/wEPDwUJNDk4MDAyNjQ0ZGQ1Rt5I0VdqjyBZxpj37FRHeGkbkoRpCmohM64NK8Nn3w=="/>
+</div>
+<div>
+<input id="__VIEWSTATEGENERATOR" name="__VIEWSTATEGENERATOR" type="hidden" value="3C3AC055"/>
+</div>
+<div style="width: 1000px; margin: 0 auto;">
+<div class="note-message" id="data-not-revised-note">Note: Institution did NOT submit revisions through the Prior Year Data Revision System for selected collection year and survey.</div>
+<div class="note-message" id="data-revised-note">Note: Reported data includes revisions made through the Prior Year Data Revision System for  selected collection year and survey.</div>
+<div class="note-message show" id="pre-2014-data-not-revised-note">Note: Reported data do not include revisions made through the Prior Year Data Revision System for any institution prior to collection year 2014.</div>
+<div class="note-message" id="latest-year-data-not-revised-note">Note: Revisions made through the Prior Year Data Revision System are not available for the selected collection year.</div>
+<div class="no-survey-found">
+                Please select survey from dropdown above
+            </div>
+<div id="survey_content"><div class="facsimile_assets"><table border="0" cellpadding="0" cellspacing="0" id="Table3" width="650">
+<tbody><tr>
+<td align="left">
+<table border="0" cellpadding="0" cellspacing="0" id="tblHeader" width="650">
+<tbody><tr>
+<td colspan="2" style="line-height:20px; height:30px; vertical-align:middle;">
+<div align="center" class="pagetitle" style="height:100%; padding-top:10px;">
+<span id="lblSurveyName">Human Resources 2010-11</span>
+</div>
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Human Resources Screening Questions</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="5">Does your institution have any <b><a href="javascript:openglossary(467)">part-time</a></b> staff?</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5"><i>If you answer <b>Yes</b> to this question, you will be provided the screens to report part-time staff.</i></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">                                            </td><td class="sc-tb-l" nowrap="true"><input checked="true" type="radio" value="1"/></td><td class="sc-tb-l">Yes</td><td class="sc-tb-l" nowrap="true"><input type="radio" value="0"/></td><td class="sc-tb-l">No</td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="6">Do ALL of the <b>instructional staff</b> at your institution fall into any of the following categories?</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="6"><i>If you answer <b>Yes</b> to any of the questions below, the <b>Salaries</b> section is <b>NOT</b> applicable to your institution and you will <b>NOT</b> be required to report data for the <b>Salaries</b> section.</i></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="6"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c" nowrap="true"><input checked="true" type="radio" value="2"/></td><td class="sc-tb-l">No</td><td class="sc-tb-c" nowrap="true"><input type="radio" value="1"/></td><td class="sc-tb-l">Yes</td><td class="sc-tb-l">Are ALL of the instructional staff military personnel?</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"> </td><td class="sc-tb-c" nowrap="true"><input checked="true" type="radio" value="2"/></td><td class="sc-tb-l">No</td><td class="sc-tb-c" nowrap="true"><input type="radio" value="1"/></td><td class="sc-tb-l">Yes</td><td class="sc-tb-l">Do ALL of the instructional staff  contribute their services (e.g., members of a religious order)?</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"> </td><td class="sc-tb-c" nowrap="true"><input checked="true" type="radio" value="2"/></td><td class="sc-tb-l">No</td><td class="sc-tb-c" nowrap="true"><input type="radio" value="1"/></td><td class="sc-tb-l">Yes</td><td class="sc-tb-l">Do ALL of the instructional staff teach pre-clinical or clinical medicine?</td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="2">The completion of the Fall Staff section is optional this year as it is in even-numbered years.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="2">Do you wish to complete the <b>Fall Staff section</b> this year? <br/> If you answer <b><i>No</i></b>, screens to report <b>Fall Staff</b> data will not be displayed. <br/>If you answer <b><i>Yes</i></b>, screens to report <b>Fall Staff</b> data will be displayed and you must complete ALL applicable <b>Fall Staff</b> screens.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" nowrap="true"><input checked="true" type="radio" value="0"/></td><td class="sc-tb-l">No, I will not complete the Fall Staff section this year                                                                      </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" nowrap="true"><input type="radio" value="1"/></td><td class="sc-tb-l">Yes, I will complete the Fall Staff section this year                                                                      </td>
+</tr>
+</tbody></table>
+<table cellpadding="0" cellspacing="0" class="sc" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row">
+<td class="sc-h sc-tb-l" colspan="5">You may use the space below to <b>provide context</b> for the data you've reported above.</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5" nowrap="true"> <textarea id="cvt_f12782" name="cvt_f12782" onchange='return trTxt(this, 999,"Text was too long and has been shortened. Please be concise." );' oninput='return trTxt(this, 999,"Text was too long and has been shortened. Please be concise." );' onkeyup='return trTxt(this, 999,"Text was too long and has been shortened. Please be concise." );' onpaste='return trTxt(this, 999,"Text was too long and has been shortened. Please be concise." );' value=""></textarea></td>
+</tr>
+</tbody></table>
+<span><input id="hd_f13686" name="hd_f13686" type="hidden" value="2"/><input id="hd_f15301" name="hd_f15301" type="hidden" value="55"/><input id="hd_f1969" name="hd_f1969" type="hidden" value=""/><input id="hd_f1924" name="hd_f1924" type="hidden" value="55"/><input id="hd_f100517" name="hd_f100517" type="hidden" value=""/><input id="hd_f100518" name="hd_f100518" type="hidden" value=""/><input id="hd_f100519" name="hd_f100519" type="hidden" value=""/><input id="hd_f14278" name="hd_f14278" type="hidden" value=""/><input id="hd_f150027" name="hd_f150027" type="hidden" value="0"/><input id="hd_f150104" name="hd_f150104" type="hidden" value="0"/><input id="hd_f150105" name="hd_f150105" type="hidden" value="0"/></span>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Part A - Employees by Assigned Position - Full-time staff</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6">Number of <b><a href="javascript:openglossary(257)">full-time</a></b> staff by faculty status and primary function/occupational activity<br/><br/><center><b>As of November 1, 2010</b></center></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" rowspan="2"><center>Primary function/<br/>occupational activity<br/>(mutually exclusive categories)</center></td><td class="sc-h sc-tb-c" colspan="3"><b>Faculty status</b></td><td class="sc-tb-l" rowspan="2"><center>Without<br/>faculty<br/>status</center></td><td class="sc-tb-c" rowspan="2">Total</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"><a href="javascript:openglossary(639)" style="color:Black"></a><a href="javascript:openglossary(639)">Tenured</a></td><td class="sc-tb-c"><a href="javascript:openglossary(641)" style="color:Black"></a><a href="javascript:openglossary(641)">On tenure track</a></td><td class="sc-tb-c">Not on <br/> tenure track/<br/>no tenure system</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(499)" style="color:Black">Primarily instruction</a></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2101" maxlength="7" name="tb_f2101" style="width:42px;" type="text" value="39"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2149" maxlength="7" name="tb_f2149" style="width:42px;" type="text" value="7"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2197" maxlength="7" name="tb_f2197" style="width:42px;" type="text" value="9"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2245" maxlength="7" name="tb_f2245" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2293" name="hd_f2293" type="hidden" value="55"/>55</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(333)" style="color:Black">Instruction/research/public service</a></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2102" maxlength="7" name="tb_f2102" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2150" maxlength="7" name="tb_f2150" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2198" maxlength="7" name="tb_f2198" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2246" maxlength="7" name="tb_f2246" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2294" name="hd_f2294" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l">Primarily instruction + Instruction/research/public service</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15297" name="hd_f15297" type="hidden" value="39"/>39</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15298" name="hd_f15298" type="hidden" value="7"/>7</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15299" name="hd_f15299" type="hidden" value="9"/>9</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15300" name="hd_f15300" type="hidden" value="0"/>0</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15301" name="hd_f15301" type="hidden" value="55"/>55</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(503)" style="color:Black">Primarily research</a></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2103" maxlength="7" name="tb_f2103" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2151" maxlength="7" name="tb_f2151" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2199" maxlength="7" name="tb_f2199" style="width:42px;" type="text" value="15"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2247" maxlength="7" name="tb_f2247" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2295" name="hd_f2295" type="hidden" value="15"/>15</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(501)" style="color:Black">Primarily public service</a></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2104" maxlength="7" name="tb_f2104" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2152" maxlength="7" name="tb_f2152" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2200" maxlength="7" name="tb_f2200" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2248" maxlength="7" name="tb_f2248" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2296" name="hd_f2296" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l">Primarily instruction + Instruction/research/public service + Primarily research + Primarily public service</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15302" name="hd_f15302" type="hidden" value="39"/>39</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15303" name="hd_f15303" type="hidden" value="7"/>7</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15304" name="hd_f15304" type="hidden" value="24"/>24</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15305" name="hd_f15305" type="hidden" value="0"/>0</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15306" name="hd_f15306" type="hidden" value="70"/>70</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(209)" style="color:Black"></a><a href="javascript:openglossary(209)">Executive/administrative/managerial</a></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2105" maxlength="7" name="tb_f2105" style="width:42px;" type="text" value="2"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2153" maxlength="7" name="tb_f2153" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2201" maxlength="7" name="tb_f2201" style="width:42px;" type="text" value="5"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2249" maxlength="7" name="tb_f2249" style="width:42px;" type="text" value="33"/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2297" name="hd_f2297" type="hidden" value="40"/>40</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(447)" style="color:Black"></a><a href="javascript:openglossary(447)">Other professionals (support/service)</a></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2107" maxlength="7" name="tb_f2107" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2155" maxlength="7" name="tb_f2155" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2203" maxlength="7" name="tb_f2203" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2251" maxlength="7" name="tb_f2251" style="width:42px;" type="text" value="30"/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2299" name="hd_f2299" type="hidden" value="30"/>30</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(637)" style="color:Black"></a><a href="javascript:openglossary(637)">Technical and paraprofessionals</a></td><td class="sc-tb-r" colspan="3"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2252" maxlength="7" name="tb_f2252" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2300" name="hd_f2300" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(115)" style="color:Black"></a><a href="javascript:openglossary(115)">Clerical and secretarial</a></td><td class="sc-tb-r" colspan="3"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2253" maxlength="7" name="tb_f2253" style="width:42px;" type="text" value="26"/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2301" name="hd_f2301" type="hidden" value="26"/>26</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(595)" style="color:Black"></a><a href="javascript:openglossary(595)">Skilled crafts</a></td><td class="sc-tb-r" colspan="3"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2254" maxlength="7" name="tb_f2254" style="width:42px;" type="text" value="3"/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2302" name="hd_f2302" type="hidden" value="3"/>3</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(591)" style="color:Black"></a><a href="javascript:openglossary(591)">Service/Maintenance</a></td><td class="sc-tb-r" colspan="3"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2255" maxlength="7" name="tb_f2255" style="width:42px;" type="text" value="10"/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2303" name="hd_f2303" type="hidden" value="10"/>10</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-g sc-tb-l"><b>Total full time </b></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2112" name="hd_f2112" type="hidden" value="41"/>41</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2160" name="hd_f2160" type="hidden" value="7"/>7</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2208" name="hd_f2208" type="hidden" value="29"/>29</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2256" name="hd_f2256" type="hidden" value="102"/>102</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2304" name="hd_f2304" type="hidden" value="179"/>179</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total from prior year</td><td class="sc-dbcalc-f-py sc-tb-r"><input id="hd_f13976" name="hd_f13976" type="hidden" value="41"/>41</td><td class="sc-dbcalc-f-py sc-tb-r"><input id="hd_f13977" name="hd_f13977" type="hidden" value="7"/>7</td><td class="sc-dbcalc-f-py sc-tb-r"><input id="hd_f13978" name="hd_f13978" type="hidden" value="29"/>29</td><td class="sc-dbcalc-f-py sc-tb-r"><input id="hd_f13979" name="hd_f13979" type="hidden" value="102"/>102</td><td class="sc-dbcalc-f-py sc-tb-r"><input id="hd_f13980" name="hd_f13980" type="hidden" value="179"/>179</td>
+</tr>
+</tbody></table>
+<span><input id="hd_f13686" name="hd_f13686" type="hidden" value="2"/><input id="hd_f14275" name="hd_f14275" type="hidden" value="2"/><input id="hd_f14276" name="hd_f14276" type="hidden" value="2"/><input id="hd_f14277" name="hd_f14277" type="hidden" value="2"/><input id="hd_f2316" name="hd_f2316" type="hidden" value=""/><input id="hd_f15316" name="hd_f15316" type="hidden" value=""/><input id="hd_f100518" name="hd_f100518" type="hidden" value=""/><input id="hd_f100519" name="hd_f100519" type="hidden" value=""/><input id="hd_f100517" name="hd_f100517" type="hidden" value=""/></span>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Part B - Employees by Assigned Position - Part-time staff </div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="7">Number of <b><a href="javascript:openglossary(467)">part-time</a></b> staff by faculty status and primary function/occupational activity<br/><br/><center><b>As of November 1, 2010</b></center></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-c" rowspan="2">Primary function/<br/>occupational activity<br/>(mutually exclusive categories)</td><td class="sc-h sc-tb-c" colspan="3"><b>Faculty status</b></td><td class="sc-tb-c" rowspan="2">Without<br/>faculty<br/>status</td><td class="sc-tb-c" rowspan="2">Total</td><td class="sc-tb-c" rowspan="2"><a href="javascript:openglossary(335)" style="color:Black"></a><a href="javascript:openglossary(335)">Graduate assistants</a></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"><a href="javascript:openglossary(639)" style="color:Black"></a><a href="javascript:openglossary(639)">Tenured</a></td><td class="sc-tb-c"><a href="javascript:openglossary(641)" style="color:Black"></a><a href="javascript:openglossary(641)">On tenure track</a></td><td class="sc-tb-c">Not on <br/> tenure track/<br/>no tenure system</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(499)" style="color:Black">Primarily instruction</a></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2125" maxlength="7" name="tb_f2125" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2173" maxlength="7" name="tb_f2173" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2221" maxlength="7" name="tb_f2221" style="width:42px;" type="text" value="15"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2269" maxlength="7" name="tb_f2269" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2317" name="hd_f2317" type="hidden" value="15"/>15</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2341" maxlength="7" name="tb_f2341" style="width:42px;" type="text" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(333)" style="color:Black">Instruction/research/public service</a></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2126" maxlength="7" name="tb_f2126" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2174" maxlength="7" name="tb_f2174" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2222" maxlength="7" name="tb_f2222" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2270" maxlength="7" name="tb_f2270" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2318" name="hd_f2318" type="hidden" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2342" maxlength="7" name="tb_f2342" style="width:42px;" type="text" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l">Primarily instruction + Instruction/research/public service</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15317" name="hd_f15317" type="hidden" value="0"/>0</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15318" name="hd_f15318" type="hidden" value="0"/>0</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15319" name="hd_f15319" type="hidden" value="15"/>15</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15320" name="hd_f15320" type="hidden" value="0"/>0</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15321" name="hd_f15321" type="hidden" value="15"/>15</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15322" name="hd_f15322" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(503)" style="color:Black">Primarily research</a></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2127" maxlength="7" name="tb_f2127" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2175" maxlength="7" name="tb_f2175" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2223" maxlength="7" name="tb_f2223" style="width:42px;" type="text" value="2"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2271" maxlength="7" name="tb_f2271" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2319" name="hd_f2319" type="hidden" value="2"/>2</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2343" maxlength="7" name="tb_f2343" style="width:42px;" type="text" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(501)" style="color:Black">Primarily public service</a></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2128" maxlength="7" name="tb_f2128" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2176" maxlength="7" name="tb_f2176" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2224" maxlength="7" name="tb_f2224" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2272" maxlength="7" name="tb_f2272" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2320" name="hd_f2320" type="hidden" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2344" maxlength="7" name="tb_f2344" style="width:42px;" type="text" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l">Primarily instruction + Instruction/research/public service + Primarily research + Primarily public service</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15323" name="hd_f15323" type="hidden" value="0"/>0</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15324" name="hd_f15324" type="hidden" value="0"/>0</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15325" name="hd_f15325" type="hidden" value="17"/>17</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15326" name="hd_f15326" type="hidden" value="0"/>0</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15327" name="hd_f15327" type="hidden" value="17"/>17</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15328" name="hd_f15328" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(209)" style="color:Black"></a><a href="javascript:openglossary(209)">Executive/administrative/managerial</a></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2129" maxlength="7" name="tb_f2129" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2177" maxlength="7" name="tb_f2177" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2225" maxlength="7" name="tb_f2225" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2273" maxlength="7" name="tb_f2273" style="width:42px;" type="text" value="1"/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2321" name="hd_f2321" type="hidden" value="1"/>1</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2345" maxlength="7" name="tb_f2345" style="width:42px;" type="text" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(447)" style="color:Black"></a><a href="javascript:openglossary(447)">Other professionals (support/service)</a></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2131" maxlength="7" name="tb_f2131" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2179" maxlength="7" name="tb_f2179" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2227" maxlength="7" name="tb_f2227" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2275" maxlength="7" name="tb_f2275" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2323" name="hd_f2323" type="hidden" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2347" maxlength="7" name="tb_f2347" style="width:42px;" type="text" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(637)" style="color:Black"></a><a href="javascript:openglossary(637)">Technical and paraprofessionals</a></td><td class="sc-tb-l" colspan="3"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2276" maxlength="7" name="tb_f2276" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2324" name="hd_f2324" type="hidden" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2348" maxlength="7" name="tb_f2348" style="width:42px;" type="text" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(115)" style="color:Black"></a><a href="javascript:openglossary(115)">Clerical and secretarial</a></td><td class="sc-tb-l" colspan="3"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2277" maxlength="7" name="tb_f2277" style="width:42px;" type="text" value="5"/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2325" name="hd_f2325" type="hidden" value="5"/>5</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2349" maxlength="7" name="tb_f2349" style="width:42px;" type="text" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(595)" style="color:Black"></a><a href="javascript:openglossary(595)">Skilled crafts</a></td><td class="sc-tb-r" colspan="3"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2278" maxlength="7" name="tb_f2278" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2326" name="hd_f2326" type="hidden" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2350" maxlength="7" name="tb_f2350" style="width:42px;" type="text" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(591)" style="color:Black"></a><a href="javascript:openglossary(591)">Service/Maintenance</a></td><td class="sc-tb-l" colspan="3"> </td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2279" maxlength="7" name="tb_f2279" style="width:42px;" type="text" value="1"/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2327" name="hd_f2327" type="hidden" value="1"/>1</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f2351" maxlength="7" name="tb_f2351" style="width:42px;" type="text" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-g sc-tb-l"><b>Total part time </b></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2136" name="hd_f2136" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2184" name="hd_f2184" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2232" name="hd_f2232" type="hidden" value="17"/>17</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2280" name="hd_f2280" type="hidden" value="7"/>7</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2328" name="hd_f2328" type="hidden" value="24"/>24</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f2352" name="hd_f2352" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l">Total from prior year</td><td class="sc-dbcalc-f-py sc-tb-r"><input id="hd_f13986" name="hd_f13986" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r"><input id="hd_f13987" name="hd_f13987" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r"><input id="hd_f13988" name="hd_f13988" type="hidden" value="17"/>17</td><td class="sc-dbcalc-f-py sc-tb-r"><input id="hd_f13989" name="hd_f13989" type="hidden" value="7"/>7</td><td class="sc-dbcalc-f-py sc-tb-r"><input id="hd_f13990" name="hd_f13990" type="hidden" value="24"/>24</td><td class="sc-dbcalc-f-py sc-tb-r"><input id="hd_f13991" name="hd_f13991" type="hidden" value=""/></td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Part C - Employees by Assigned Position -  Total number of staff</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="8"><center>Total number of  staff by employment status and  primary function/occupational activity</center><p></p><center><b>As of November 1, 2010</b></center></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l">Primary function/occupational activity</td><td class="sc-tb-c">Full-time</td><td class="sc-tb-c">Full-time <br/>from prior year</td><td class="sc-tb-c">Part-time</td><td class="sc-tb-c">Part-time <br/>from prior year</td><td class="sc-tb-c">Graduate assistants</td><td class="sc-tb-c">Graduate assistants <br/>from prior year</td><td class="sc-tb-c">Total including Graduate assistants</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(499)" style="color:Black">Primarily instruction</a></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14824" name="hd_f14824" type="hidden" value="55"/>55</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15341" name="hd_f15341" type="hidden" value="55"/>55</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14825" name="hd_f14825" type="hidden" value="15"/>15</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15342" name="hd_f15342" type="hidden" value="15"/>15</td><td class="sc-tb-r"> <input id="hd_f150212" name="hd_f150212" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f150264" name="hd_f150264" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f150213" name="hd_f150213" type="hidden" value="70"/>70</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(333)" style="color:Black">Instruction/research/public service</a></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14827" name="hd_f14827" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15343" name="hd_f15343" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14828" name="hd_f14828" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15344" name="hd_f15344" type="hidden" value=""/></td><td class="sc-tb-r"> <input id="hd_f150214" name="hd_f150214" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f150265" name="hd_f150265" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f150215" name="hd_f150215" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l">Primarily instruction + Instruction/research/public service</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15383" name="hd_f15383" type="hidden" value="55"/>55</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15384" name="hd_f15384" type="hidden" value="55"/>55</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15385" name="hd_f15385" type="hidden" value="15"/>15</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15386" name="hd_f15386" type="hidden" value="15"/>15</td><td class="sc-tb-r"> <input id="hd_f150234" name="hd_f150234" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f150266" name="hd_f150266" type="hidden" value="0"/>0</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f150235" name="hd_f150235" type="hidden" value="70"/>70</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(503)" style="color:Black">Primarily research</a></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14830" name="hd_f14830" type="hidden" value="15"/>15</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15345" name="hd_f15345" type="hidden" value="15"/>15</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14831" name="hd_f14831" type="hidden" value="2"/>2</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15346" name="hd_f15346" type="hidden" value="2"/>2</td><td class="sc-tb-r"> <input id="hd_f150216" name="hd_f150216" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f150267" name="hd_f150267" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f150217" name="hd_f150217" type="hidden" value="17"/>17</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(501)" style="color:Black">Primarily public service</a></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14833" name="hd_f14833" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15347" name="hd_f15347" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14834" name="hd_f14834" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15348" name="hd_f15348" type="hidden" value=""/></td><td class="sc-tb-r"> <input id="hd_f150218" name="hd_f150218" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f150268" name="hd_f150268" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f150219" name="hd_f150219" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l">Primarily instruction + Instruction/research/public service + Primarily research + Primarily public service</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15388" name="hd_f15388" type="hidden" value="70"/>70</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15389" name="hd_f15389" type="hidden" value="70"/>70</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f15390" name="hd_f15390" type="hidden" value="17"/>17</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15391" name="hd_f15391" type="hidden" value="17"/>17</td><td class="sc-s sc-tb-r"> <input id="hd_f150236" name="hd_f150236" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f150269" name="hd_f150269" type="hidden" value="0"/>0</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f150237" name="hd_f150237" type="hidden" value="87"/>87</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(209)">Executive/administrative/managerial</a></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14836" name="hd_f14836" type="hidden" value="40"/>40</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15349" name="hd_f15349" type="hidden" value="40"/>40</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14837" name="hd_f14837" type="hidden" value="1"/>1</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15350" name="hd_f15350" type="hidden" value="1"/>1</td><td class="sc-tb-r"> <input id="hd_f150220" name="hd_f150220" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f150270" name="hd_f150270" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f150221" name="hd_f150221" type="hidden" value="41"/>41</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(447)">Other professionals (support/service)</a></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14839" name="hd_f14839" type="hidden" value="30"/>30</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15351" name="hd_f15351" type="hidden" value="30"/>30</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14840" name="hd_f14840" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15352" name="hd_f15352" type="hidden" value=""/></td><td class="sc-tb-r"> <input id="hd_f150222" name="hd_f150222" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f150271" name="hd_f150271" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f150223" name="hd_f150223" type="hidden" value="30"/>30</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(637)">Technical and paraprofessionals</a></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14842" name="hd_f14842" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15353" name="hd_f15353" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14843" name="hd_f14843" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15354" name="hd_f15354" type="hidden" value=""/></td><td class="sc-tb-r"> <input id="hd_f150224" name="hd_f150224" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f150272" name="hd_f150272" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f150225" name="hd_f150225" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(115)">Clerical and secretarial</a></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14845" name="hd_f14845" type="hidden" value="26"/>26</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15355" name="hd_f15355" type="hidden" value="26"/>26</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14846" name="hd_f14846" type="hidden" value="5"/>5</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15356" name="hd_f15356" type="hidden" value="5"/>5</td><td class="sc-tb-r"> <input id="hd_f150226" name="hd_f150226" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f150273" name="hd_f150273" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f150227" name="hd_f150227" type="hidden" value="31"/>31</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l"><a href="javascript:openglossary(595)">Skilled crafts</a></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14848" name="hd_f14848" type="hidden" value="3"/>3</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15357" name="hd_f15357" type="hidden" value="3"/>3</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14849" name="hd_f14849" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15358" name="hd_f15358" type="hidden" value=""/></td><td class="sc-tb-r"> <input id="hd_f150228" name="hd_f150228" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f150274" name="hd_f150274" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f150229" name="hd_f150229" type="hidden" value="3"/>3</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l"><a href="javascript:openglossary(591)">Service/Maintenance</a></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14851" name="hd_f14851" type="hidden" value="10"/>10</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15359" name="hd_f15359" type="hidden" value="10"/>10</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14852" name="hd_f14852" type="hidden" value="1"/>1</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15360" name="hd_f15360" type="hidden" value="1"/>1</td><td class="sc-tb-r"> <input id="hd_f150230" name="hd_f150230" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f150275" name="hd_f150275" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f150231" name="hd_f150231" type="hidden" value="11"/>11</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-g sc-tb-l">Grand total</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14854" name="hd_f14854" type="hidden" value="179"/>179</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15361" name="hd_f15361" type="hidden" value="179"/>179</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14855" name="hd_f14855" type="hidden" value="24"/>24</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15362" name="hd_f15362" type="hidden" value="24"/>24</td><td class="sc-s sc-tb-r"> <input id="hd_f150232" name="hd_f150232" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f150276" name="hd_f150276" type="hidden" value=""/></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f150233" name="hd_f150233" type="hidden" value="203"/>203</td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Part D - Salaries - Full-time instructional staff by contract length/teaching period - Headcount</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="5"><b>Number</b> of <b>full-time instructional staff</b> by contract length/teaching period, gender, and academic rank<p></p><center><b>As of November 1, 2010</b></center></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Gender and academic rank</td><td class="sc-tb-l" colspan="1"><center>Less-than-9-month</center></td><td class="sc-tb-l" colspan="1"><center>9/10-month</center></td><td class="sc-tb-l" colspan="1"><center>11/12-month</center></td><td class="sc-tb-l" colspan="1"><center>Total</center></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="5"><b>Men</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Professors</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2057" maxlength="7" name="tb_f2057" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1882" maxlength="7" name="tb_f1882" style="width:42px;" type="text" value="8"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1927" maxlength="7" name="tb_f1927" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14324" name="hd_f14324" type="hidden" value="8"/>8</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Associate professors</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2060" maxlength="7" name="tb_f2060" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1885" maxlength="7" name="tb_f1885" style="width:42px;" type="text" value="14"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1930" maxlength="7" name="tb_f1930" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14325" name="hd_f14325" type="hidden" value="14"/>14</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Assistant professors</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2063" maxlength="7" name="tb_f2063" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1888" maxlength="7" name="tb_f1888" style="width:42px;" type="text" value="4"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1933" maxlength="7" name="tb_f1933" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14326" name="hd_f14326" type="hidden" value="4"/>4</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Instructors</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2066" maxlength="7" name="tb_f2066" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1891" maxlength="7" name="tb_f1891" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1936" maxlength="7" name="tb_f1936" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14327" name="hd_f14327" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Lecturers</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2069" maxlength="7" name="tb_f2069" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1894" maxlength="7" name="tb_f1894" style="width:42px;" type="text" value="3"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1939" maxlength="7" name="tb_f1939" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14328" name="hd_f14328" type="hidden" value="3"/>3</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">No academic rank</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2072" maxlength="7" name="tb_f2072" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1897" maxlength="7" name="tb_f1897" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1942" maxlength="7" name="tb_f1942" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14329" name="hd_f14329" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l" colspan="1"><b>Total men</b></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f2075" name="hd_f2075" type="hidden" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1900" name="hd_f1900" type="hidden" value="29"/>29</td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1945" name="hd_f1945" type="hidden" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14330" name="hd_f14330" type="hidden" value="29"/>29</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Total men from prior year</td><td class="sc-tb-r" colspan="1"> </td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15367" name="hd_f15367" type="hidden" value="29"/>29</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15377" name="hd_f15377" type="hidden" value=""/></td><td class="sc-tb-r" colspan="1"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="5"><b>Women</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Professors</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2077" maxlength="7" name="tb_f2077" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1903" maxlength="7" name="tb_f1903" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1948" maxlength="7" name="tb_f1948" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14331" name="hd_f14331" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Associate professors</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2080" maxlength="7" name="tb_f2080" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1906" maxlength="7" name="tb_f1906" style="width:42px;" type="text" value="15"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1951" maxlength="7" name="tb_f1951" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14332" name="hd_f14332" type="hidden" value="15"/>15</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Assistant professors</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2083" maxlength="7" name="tb_f2083" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1909" maxlength="7" name="tb_f1909" style="width:42px;" type="text" value="7"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1954" maxlength="7" name="tb_f1954" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14333" name="hd_f14333" type="hidden" value="7"/>7</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Instructors</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2086" maxlength="7" name="tb_f2086" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1912" maxlength="7" name="tb_f1912" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1957" maxlength="7" name="tb_f1957" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14334" name="hd_f14334" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Lecturers</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2089" maxlength="7" name="tb_f2089" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1915" maxlength="7" name="tb_f1915" style="width:42px;" type="text" value="4"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1960" maxlength="7" name="tb_f1960" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14335" name="hd_f14335" type="hidden" value="4"/>4</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">No academic rank</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2092" maxlength="7" name="tb_f2092" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1918" maxlength="7" name="tb_f1918" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1963" maxlength="7" name="tb_f1963" style="width:42px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14336" name="hd_f14336" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l" colspan="1"><b>Total women</b></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f2095" name="hd_f2095" type="hidden" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1921" name="hd_f1921" type="hidden" value="26"/>26</td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1966" name="hd_f1966" type="hidden" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14337" name="hd_f14337" type="hidden" value="26"/>26</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Total women from prior year</td><td class="sc-tb-r" colspan="1"> </td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15372" name="hd_f15372" type="hidden" value="26"/>26</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15382" name="hd_f15382" type="hidden" value=""/></td><td class="sc-tb-r" colspan="1"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l" colspan="1"><b>Total (men + women)</b></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f2097" name="hd_f2097" type="hidden" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1924" name="hd_f1924" type="hidden" value="55"/>55</td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1969" name="hd_f1969" type="hidden" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14338" name="hd_f14338" type="hidden" value="55"/>55</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Total from EAP, full-time non-medical section <br/>(Primarily instruction + <br/>Instruction/research/public service lines)</td><td class="sc-tb-l" colspan="3"> </td><td class="sc-tb-r" colspan="1"> <input id="hd_f15301" name="hd_f15301" type="hidden" value="55"/>55</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Total from prior year (Salaries section)</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f2099" name="hd_f2099" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f2051" name="hd_f2051" type="hidden" value="55"/>55</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f2053" name="hd_f2053" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f14763" name="hd_f14763" type="hidden" value="55"/>55</td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Part D - Salaries - Full-time instructional staff on 9/10-month contracts/teaching periods - Faculty status</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="6"><p><br/></p><center><b>****   Applicable to 4-year degree-granting institutions and above only    **** </b></center><br/>Number of <b>full-time instructional staff</b> on <b>9/10-month contracts/teaching periods</b> by faculty status, gender, and academic rank<br/><br/><center><b>As of November 1, 2010</b></center></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" rowspan="2"><br/><br/><center>Gender and academic rank</center></td><td class="sc-h sc-tb-c" colspan="3"><b>Faculty status</b></td><td class="sc-tb-c" rowspan="2"><br/><center>Without<br/>faculty<br/>status</center></td><td class="sc-tb-l" rowspan="2">Total from Part D<br/>(Headcount screen)</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-c"><br/><br/><a href="javascript:openglossary(639)">Tenured</a></td><td class="sc-tb-c"><br/><br/><a href="javascript:openglossary(641)">On tenure track</a></td><td class="sc-tb-c">Not on <br/> tenure track/<br/>no tenure system</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-y sc-tb-l" colspan="6"><b>Men</b></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Professors</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14858" maxlength="7" name="tb_f14858" style="width:42px;" type="text" value="7"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14859" maxlength="7" name="tb_f14859" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14860" maxlength="7" name="tb_f14860" style="width:42px;" type="text" value="1"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14861" maxlength="7" name="tb_f14861" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r"> <input id="hd_f1882" name="hd_f1882" type="hidden" value="8"/>8</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Associate Professors</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14863" maxlength="7" name="tb_f14863" style="width:42px;" type="text" value="13"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14864" maxlength="7" name="tb_f14864" style="width:42px;" type="text" value="1"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14865" maxlength="7" name="tb_f14865" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14866" maxlength="7" name="tb_f14866" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r"> <input id="hd_f1885" name="hd_f1885" type="hidden" value="14"/>14</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Assistant Professors</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14868" maxlength="7" name="tb_f14868" style="width:42px;" type="text" value="1"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14869" maxlength="7" name="tb_f14869" style="width:42px;" type="text" value="3"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14870" maxlength="7" name="tb_f14870" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14871" maxlength="7" name="tb_f14871" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r"> <input id="hd_f1888" name="hd_f1888" type="hidden" value="4"/>4</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Instructors</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14873" maxlength="7" name="tb_f14873" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14874" maxlength="7" name="tb_f14874" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14875" maxlength="7" name="tb_f14875" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14876" maxlength="7" name="tb_f14876" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r"> <input id="hd_f1891" name="hd_f1891" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Lecturers</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14878" maxlength="7" name="tb_f14878" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14879" maxlength="7" name="tb_f14879" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14880" maxlength="7" name="tb_f14880" style="width:42px;" type="text" value="3"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14881" maxlength="7" name="tb_f14881" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r"> <input id="hd_f1894" name="hd_f1894" type="hidden" value="3"/>3</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">No academic rank</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14883" maxlength="7" name="tb_f14883" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14884" maxlength="7" name="tb_f14884" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14885" maxlength="7" name="tb_f14885" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14886" maxlength="7" name="tb_f14886" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r"> <input id="hd_f1897" name="hd_f1897" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l" colspan="1"><b>Total men </b></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14888" name="hd_f14888" type="hidden" value="21"/>21</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14889" name="hd_f14889" type="hidden" value="4"/>4</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14890" name="hd_f14890" type="hidden" value="4"/>4</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14891" name="hd_f14891" type="hidden" value="0"/>0</td><td class="sc-s sc-tb-r"> <input id="hd_f1900" name="hd_f1900" type="hidden" value="29"/>29</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1"><b>Total men prior year</b></td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15363" name="hd_f15363" type="hidden" value="21"/>21</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15364" name="hd_f15364" type="hidden" value="4"/>4</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15365" name="hd_f15365" type="hidden" value="4"/>4</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15366" name="hd_f15366" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15367" name="hd_f15367" type="hidden" value="29"/>29</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="6"><b>Women</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Professors</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14893" maxlength="7" name="tb_f14893" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14894" maxlength="7" name="tb_f14894" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14895" maxlength="7" name="tb_f14895" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14896" maxlength="7" name="tb_f14896" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r"> <input id="hd_f1903" name="hd_f1903" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Associate Professors</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14898" maxlength="7" name="tb_f14898" style="width:42px;" type="text" value="15"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14899" maxlength="7" name="tb_f14899" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14900" maxlength="7" name="tb_f14900" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14901" maxlength="7" name="tb_f14901" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r"> <input id="hd_f1906" name="hd_f1906" type="hidden" value="15"/>15</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Assistant Professors</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14903" maxlength="7" name="tb_f14903" style="width:42px;" type="text" value="3"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14904" maxlength="7" name="tb_f14904" style="width:42px;" type="text" value="3"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14905" maxlength="7" name="tb_f14905" style="width:42px;" type="text" value="1"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14906" maxlength="7" name="tb_f14906" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r"> <input id="hd_f1909" name="hd_f1909" type="hidden" value="7"/>7</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Instructors</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14908" maxlength="7" name="tb_f14908" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14909" maxlength="7" name="tb_f14909" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14910" maxlength="7" name="tb_f14910" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14911" maxlength="7" name="tb_f14911" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r"> <input id="hd_f1912" name="hd_f1912" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Lecturers</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14913" maxlength="7" name="tb_f14913" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14914" maxlength="7" name="tb_f14914" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14915" maxlength="7" name="tb_f14915" style="width:42px;" type="text" value="4"/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14916" maxlength="7" name="tb_f14916" style="width:42px;" type="text" value="0"/></td><td class="sc-tb-r"> <input id="hd_f1915" name="hd_f1915" type="hidden" value="4"/>4</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">No academic rank</td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14918" maxlength="7" name="tb_f14918" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14919" maxlength="7" name="tb_f14919" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14920" maxlength="7" name="tb_f14920" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" nowrap="true"> <input class="sc-tbn" id="tb_f14921" maxlength="7" name="tb_f14921" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r"> <input id="hd_f1918" name="hd_f1918" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l" colspan="1"><b>Total women </b></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14923" name="hd_f14923" type="hidden" value="18"/>18</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14924" name="hd_f14924" type="hidden" value="3"/>3</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14925" name="hd_f14925" type="hidden" value="5"/>5</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14926" name="hd_f14926" type="hidden" value="0"/>0</td><td class="sc-s sc-tb-r"> <input id="hd_f1921" name="hd_f1921" type="hidden" value="26"/>26</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1"><b>Total women prior year</b></td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15368" name="hd_f15368" type="hidden" value="18"/>18</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15369" name="hd_f15369" type="hidden" value="3"/>3</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15370" name="hd_f15370" type="hidden" value="5"/>5</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15371" name="hd_f15371" type="hidden" value="0"/>0</td><td class="sc-dbcalc-f-py sc-tb-r"> <input id="hd_f15372" name="hd_f15372" type="hidden" value="26"/>26</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-g sc-tb-l" colspan="1"><b>Total (men + women)</b></td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14928" name="hd_f14928" type="hidden" value="39"/>39</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14929" name="hd_f14929" type="hidden" value="7"/>7</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14930" name="hd_f14930" type="hidden" value="9"/>9</td><td class="sc-s sc-tb-r" nowrap="true"> <input id="hd_f14931" name="hd_f14931" type="hidden" value="0"/>0</td><td class="sc-g sc-tb-r"> <input id="hd_f1924" name="hd_f1924" type="hidden" value="55"/>55</td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Part E - Salaries - Full-time instructional staff on 9/10-month contracts/teaching periods - Salary outlays</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="5"><b>Salaries</b> of <b>full-time instructional staff</b> on <b>9/10-month contracts/teaching periods</b> by gender and academic rank<p></p><center><b>As of November 1, 2010</b></center></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Gender and academic rank</td><td class="sc-tb-l" colspan="1">Total from Part D<br/>(Headcount screen)</td><td class="sc-tb-l" colspan="1"><center>Salary outlays</center></td><td class="sc-tb-l" colspan="1"><center>Average salary</center></td><td class="sc-tb-l" colspan="1"><center>Prior year <br/>Average salary</center></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="5"><b>Men</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Professors</td><td class="sc-tb-r" colspan="1"> <input id="hd_f1882" name="hd_f1882" type="hidden" value="8"/>8</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1883" maxlength="15" name="tb_f1883" style="width:90px;" type="text" value="538,829"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1884" name="hd_f1884" type="hidden" value="67354"/>67,354</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15008" name="hd_f15008" type="hidden" value="67354"/>67,354</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Associate professors</td><td class="sc-tb-r" colspan="1"> <input id="hd_f1885" name="hd_f1885" type="hidden" value="14"/>14</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1886" maxlength="15" name="tb_f1886" style="width:90px;" type="text" value="759,512"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1887" name="hd_f1887" type="hidden" value="54251"/>54,251</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15009" name="hd_f15009" type="hidden" value="54251"/>54,251</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Assistant professors</td><td class="sc-tb-r" colspan="1"> <input id="hd_f1888" name="hd_f1888" type="hidden" value="4"/>4</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1889" maxlength="15" name="tb_f1889" style="width:90px;" type="text" value="187,492"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1890" name="hd_f1890" type="hidden" value="46873"/>46,873</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15010" name="hd_f15010" type="hidden" value="46873"/>46,873</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Instructors</td><td class="sc-tb-r" colspan="1"> <input id="hd_f1891" name="hd_f1891" type="hidden" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1892" maxlength="15" name="tb_f1892" style="width:90px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1893" name="hd_f1893" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15011" name="hd_f15011" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Lecturers</td><td class="sc-tb-r" colspan="1"> <input id="hd_f1894" name="hd_f1894" type="hidden" value="3"/>3</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1895" maxlength="15" name="tb_f1895" style="width:90px;" type="text" value="101,439"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1896" name="hd_f1896" type="hidden" value="33813"/>33,813</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15012" name="hd_f15012" type="hidden" value="33813"/>33,813</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">No academic rank</td><td class="sc-tb-r" colspan="1"> <input id="hd_f1897" name="hd_f1897" type="hidden" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1898" maxlength="15" name="tb_f1898" style="width:90px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1899" name="hd_f1899" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15013" name="hd_f15013" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l" colspan="1"><b>Total men</b></td><td class="sc-s sc-tb-r" colspan="1"> <input id="hd_f1900" name="hd_f1900" type="hidden" value="29"/>29</td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1901" name="hd_f1901" type="hidden" value="1587272"/>1,587,272</td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f102581" name="hd_f102581" type="hidden" value="54734"/>54,734</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f102589" name="hd_f102589" type="hidden" value="54734"/>54,734</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-y sc-tb-l" colspan="5"><b>Women</b></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Professors</td><td class="sc-tb-r" colspan="1"> <input id="hd_f1903" name="hd_f1903" type="hidden" value="0"/>0</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1904" maxlength="15" name="tb_f1904" style="width:90px;" type="text" value="0"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1905" name="hd_f1905" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15014" name="hd_f15014" type="hidden" value="0"/>0</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Associate professors</td><td class="sc-tb-r" colspan="1"> <input id="hd_f1906" name="hd_f1906" type="hidden" value="15"/>15</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1907" maxlength="15" name="tb_f1907" style="width:90px;" type="text" value="767,834"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1908" name="hd_f1908" type="hidden" value="51189"/>51,189</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15015" name="hd_f15015" type="hidden" value="51189"/>51,189</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Assistant professors</td><td class="sc-tb-r" colspan="1"> <input id="hd_f1909" name="hd_f1909" type="hidden" value="7"/>7</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1910" maxlength="15" name="tb_f1910" style="width:90px;" type="text" value="333,700"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1911" name="hd_f1911" type="hidden" value="47671"/>47,671</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15016" name="hd_f15016" type="hidden" value="47671"/>47,671</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Instructors</td><td class="sc-tb-r" colspan="1"> <input id="hd_f1912" name="hd_f1912" type="hidden" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1913" maxlength="15" name="tb_f1913" style="width:90px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1914" name="hd_f1914" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15017" name="hd_f15017" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Lecturers</td><td class="sc-tb-r" colspan="1"> <input id="hd_f1915" name="hd_f1915" type="hidden" value="4"/>4</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1916" maxlength="15" name="tb_f1916" style="width:90px;" type="text" value="135,516"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1917" name="hd_f1917" type="hidden" value="33879"/>33,879</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15018" name="hd_f15018" type="hidden" value="33879"/>33,879</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">No academic rank</td><td class="sc-tb-r" colspan="1"> <input id="hd_f1918" name="hd_f1918" type="hidden" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1919" maxlength="15" name="tb_f1919" style="width:90px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1920" name="hd_f1920" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15019" name="hd_f15019" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-s sc-tb-l" colspan="1"><b>Total women</b></td><td class="sc-s sc-tb-r" colspan="1"> <input id="hd_f1921" name="hd_f1921" type="hidden" value="26"/>26</td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1922" name="hd_f1922" type="hidden" value="1237050"/>1,237,050</td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f102582" name="hd_f102582" type="hidden" value="47579"/>47,579</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f102590" name="hd_f102590" type="hidden" value="47579"/>47,579</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l" colspan="1"><b>Total (men + women)</b></td><td class="sc-s sc-tb-r" colspan="1"> <input id="hd_f1924" name="hd_f1924" type="hidden" value="55"/>55</td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1925" name="hd_f1925" type="hidden" value="2824322"/>2,824,322</td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f102583" name="hd_f102583" type="hidden" value="51351"/>51,351</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f102591" name="hd_f102591" type="hidden" value="51351"/>51,351</td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Part F - Salaries - Full-time instructional staff on 9/10-month contracts/teaching periods - Fringe benefits</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="5"><b><a href="javascript:openglossary(251)">Fringe benefits</a></b> of <b>full-time instructional staff</b> on <b>9/10-month contracts/teaching periods</b><p></p><center><b>As of November 1, 2010</b></center></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1"><br/>Fringe benefits</td><td class="sc-tb-c" colspan="1"><br/>Number<br/>covered</td><td class="sc-tb-c" colspan="1"><br/><br/>Expenditures</td><td class="sc-tb-c" colspan="1"><br/>Average<br/>expenditures</td><td class="sc-tb-c" colspan="1">Prior year <br/>Average expenditures</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1"><a href="javascript:openglossary(691)" style="color:Black"></a><a href="javascript:openglossary(691)">Retirement plans (other than Social Security) - Vested</a> within 5-years</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1976" maxlength="7" name="tb_f1976" style="width:42px;" type="text" value="32"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1975" maxlength="15" name="tb_f1975" style="width:90px;" type="text" value="143,269"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1979" name="hd_f1979" type="hidden" value="4477"/>4,477</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15032" name="hd_f15032" type="hidden" value="4477"/>4,477</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Retirement plans (other than Social Security) - Vested after   5-years</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1982" maxlength="7" name="tb_f1982" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1981" maxlength="15" name="tb_f1981" style="width:90px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1985" name="hd_f1985" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15033" name="hd_f15033" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Medical/dental plans</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1988" maxlength="7" name="tb_f1988" style="width:42px;" type="text" value="39"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1987" maxlength="15" name="tb_f1987" style="width:90px;" type="text" value="90,014"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1991" name="hd_f1991" type="hidden" value="2308"/>2,308</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15034" name="hd_f15034" type="hidden" value="2308"/>2,308</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Group life insurance</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1994" maxlength="7" name="tb_f1994" style="width:42px;" type="text" value="51"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1993" maxlength="15" name="tb_f1993" style="width:90px;" type="text" value="8,973"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f1997" name="hd_f1997" type="hidden" value="176"/>176</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15035" name="hd_f15035" type="hidden" value="176"/>176</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1"><a href="javascript:openglossary(445)" style="color:Black">Other insurance benefits (cafeteria plan, etc.)</a></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2000" maxlength="7" name="tb_f2000" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f1999" maxlength="15" name="tb_f1999" style="width:90px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f2003" name="hd_f2003" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15036" name="hd_f15036" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Guaranteed disability income protection</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2006" maxlength="7" name="tb_f2006" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2005" maxlength="15" name="tb_f2005" style="width:90px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f2009" name="hd_f2009" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15037" name="hd_f15037" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Tuition plan (dependents only)</td><td class="sc-tb-l" colspan="1"> </td><td class="sc-tb-l" colspan="1"> </td><td class="sc-tb-l" colspan="1"> </td><td class="sc-tb-l" colspan="1"> </td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">    Unrestricted</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2014" maxlength="7" name="tb_f2014" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2013" maxlength="15" name="tb_f2013" style="width:90px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f2017" name="hd_f2017" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15038" name="hd_f15038" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">    <a href="javascript:openglossary(673)">Restricted</a></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f14095" maxlength="7" name="tb_f14095" style="width:42px;" type="text" value="6"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f14096" maxlength="15" name="tb_f14096" style="width:90px;" type="text" value="65,010"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14097" name="hd_f14097" type="hidden" value="10835"/>10,835</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15044" name="hd_f15044" type="hidden" value="10835"/>10,835</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Housing plan</td><td class="sc-tb-l" colspan="1"> </td><td class="sc-tb-l" colspan="1"> </td><td class="sc-tb-l" colspan="1"> </td><td class="sc-tb-l" colspan="1"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">    Unrestricted</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2020" maxlength="7" name="tb_f2020" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2019" maxlength="15" name="tb_f2019" style="width:90px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f2023" name="hd_f2023" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15039" name="hd_f15039" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">    <a href="javascript:openglossary(295)">Restricted</a></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f14099" maxlength="7" name="tb_f14099" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f14100" maxlength="15" name="tb_f14100" style="width:90px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f14098" name="hd_f14098" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15045" name="hd_f15045" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Social Security taxes</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2026" maxlength="7" name="tb_f2026" style="width:42px;" type="text" value="54"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2025" maxlength="15" name="tb_f2025" style="width:90px;" type="text" value="213,923"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f2029" name="hd_f2029" type="hidden" value="3962"/>3,962</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15040" name="hd_f15040" type="hidden" value="3962"/>3,962</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Unemployment compensation taxes</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2032" maxlength="7" name="tb_f2032" style="width:42px;" type="text" value="54"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2031" maxlength="15" name="tb_f2031" style="width:90px;" type="text" value="23,436"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f2035" name="hd_f2035" type="hidden" value="434"/>434</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15041" name="hd_f15041" type="hidden" value="434"/>434</td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="1">Worker's compensation taxes</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2038" maxlength="7" name="tb_f2038" style="width:42px;" type="text" value="54"/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2037" maxlength="15" name="tb_f2037" style="width:90px;" type="text" value="14,262"/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f2041" name="hd_f2041" type="hidden" value="264"/>264</td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15042" name="hd_f15042" type="hidden" value="264"/>264</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="1">Other benefits in kind with cash options</td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2044" maxlength="7" name="tb_f2044" style="width:42px;" type="text" value=""/></td><td class="sc-tb-r" colspan="1" nowrap="true"> <input class="sc-tbn" id="tb_f2043" maxlength="15" name="tb_f2043" style="width:90px;" type="text" value=""/></td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f2047" name="hd_f2047" type="hidden" value=""/></td><td class="sc-dbcalc-f-py sc-tb-r" colspan="1"> <input id="hd_f15043" name="hd_f15043" type="hidden" value=""/></td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-s sc-tb-l" colspan="1"><b>Total expenditures</b></td><td class="sc-s sc-tb-l" colspan="1"> </td><td class="sc-s sc-tb-r" colspan="1" nowrap="true"> <input id="hd_f2049" name="hd_f2049" type="hidden" value="558887"/>558,887</td><td class="sc-s sc-tb-r" colspan="1"> </td><td class="sc-s sc-tb-l" colspan="1"> </td>
+</tr>
+</tbody></table>
+<span><input id="hd_f1924" name="hd_f1924" type="hidden" value="55"/></span>
+</div>
+</div><br style="page-break-before:always"/>
+<div style="text-align:left;vertical-align:top;border:none;">
+<div style="float:left;">
+<div class="shade" style="padding:4px;width:650px;">
+<div style="width:520px;float:left">Institution: Fisk University (220181) </div>
+<span style="width:100px; text-align:right">User ID: super1</span>
+</div>
+</div><br/>
+<div style="padding:4px;width:650px;border:none;font-weight:bold">Human Resources Survey Evaluation</div>
+<div style="background-color:White;">
+<table cellpadding="0" cellspacing="0" class="sc" id="" name="" style="width:640px;text-align:left;empty-cells:show;">
+<tbody><tr class="sc-row-alt">
+<td class="sc-h sc-tb-l" colspan="5">Were any staff members difficult to categorize?  If so, please explain in the box below.</td>
+</tr>
+<tr class="sc-row">
+<td class="sc-tb-l" colspan="5"> </td>
+</tr>
+<tr class="sc-row-alt">
+<td class="sc-tb-l" colspan="5" nowrap="true"> <textarea id="cvt_f14762" name="cvt_f14762" onchange='return trTxt(this, 999,"Text was too long and has been shortened. Please be concise." );' oninput='return trTxt(this, 999,"Text was too long and has been shortened. Please be concise." );' onkeyup='return trTxt(this, 999,"Text was too long and has been shortened. Please be concise." );' onpaste='return trTxt(this, 999,"Text was too long and has been shortened. Please be concise." );' value=""></textarea></td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+<div>
+<table border="0" cellpadding="4px" cellspacing="0" class="shade" width="650"><tbody><tr><td align="left" width="500">Institution: Fisk University (220181) </td><td align="right">User ID: super1</td></tr></tbody></table>
+</div><div style="padding:4px;width:650px;border:none;font-weight:bold">Summary</div>
+<div>
+<style type="text/css">
+    table.grid
+    {
+        border-collapse: collapse;
+        font-size: 9px;
+    }
+    table.grid td
+    {
+        border: 1px solid #c7ddea;
+        font-size: 10px;
+        padding: 4px;
+        vertical-align: top;
+    }
+    table.grid tr.alt td
+    {
+        background-color: #F3F5F7;
+    }
+    table.grid th
+    {
+        background-color: #D2DFE5;
+        border: 1px solid #c7ddea;
+        padding: 4px;
+        text-align:center;
+    }
+    td.number
+    {
+        text-align: right;
+    }
+    td.number span
+    {
+        margin-right: 10px;
+    }
+    td.numberWide
+    {
+        text-align: right;
+    }
+    td.numberWide span
+    {
+        margin-right: 320px;
+    }
+</style>
+<div style="width:650px">
+<div style="padding-top:20px; text-align:center; font-family:Verdana; font-size:14px; font-weight:bold; color:#336699;">
+        Human Resources Component Summary<br/>
+        (Applicable to Degree-granting institutions and Related Administrative Offices)
+    </div>
+<p>
+        IPEDS collects important information regarding your institution.  All data reported in IPEDS survey
+        components become available in the IPEDS Data Center and appear as aggregated data in various Department
+        of Education reports. Additionally, some of the reported data appears specifically for your institution
+        through the College Navigator website and is included in your institution’s Data Feedback Report (DFR).
+        The purpose of this summary is to provide you an opportunity to view some of the data that, when accepted
+        through the IPEDS quality control process, will appear on the College Navigator website and/or your DFR.
+        College Navigator is updated approximately three months after the data collection period closes and Data
+        Feedback Reports will be available through the ExPT and sent to your institution’s CEO in November 2011. 
+    </p>
+<p>
+        Please review your data for accuracy.  If you have questions about the data displayed below after reviewing
+        the data reported on the survey screens, please contact the IPEDS Help Desk at: 1-877-225-2568 or
+        <a href="mailto:ipedshelp@rti.org">ipedshelp@rti.org</a>.
+    </p>
+<table class="grid" id="tblEAP" style="width:600px">
+<tbody><tr>
+<th class="" style="font-family:Verdana; font-size:12px; font-weight:bold; color:#336699;">Number of staff by employment status and primary function/occupational activity: Fall 2010</th>
+</tr>
+<tr>
+<td>
+<table class="grid" style="width:600px">
+<tbody><tr id="Tr1">
+<td class="" style="width: 350px; vertical-align:middle;text-align:center; font-weight:bold; border-bottom:none;">Primary function/occupational activity</td>
+<td class="" colspan="2" style="width: 200px;text-align:center; font-weight:bold;">Reported values</td>
+<td class="" style="width: 50px;vertical-align:middle;text-align:center; font-weight:bold; border-bottom:none;">FTE staff</td>
+</tr>
+<tr id="Tr2">
+<td class="" style="text-align:center; font-weight:bold; border-top:none;"> </td>
+<td class="" style="text-align:center; font-weight:bold;">Number of<br/>full-time staff</td>
+<td class="" style="text-align:center; font-weight:bold;">Number of<br/>part-time staff</td>
+<td class="" style="text-align:center; font-weight:bold; border-top:none;"> </td>
+</tr>
+<tr class="alt" id="Tr3">
+<td class="" style="width: 350px; font-weight:bold;">Total number of staff</td>
+<td class="" style="width: 100px; text-align:right;"><span id="lblEAPFT1">179</span></td>
+<td class="" style="width: 100px; text-align:right;"><span id="lblEAPPT1">24</span></td>
+<td class="" style="width: 50px; text-align:right;"><span id="lblEAPFTE1">187</span></td>
+</tr>
+<tr class="alt" id="Tr4">
+<td class="" style="width: 350px; padding-left:30px; font-weight:bold;">Professional staff</td>
+<td class="" style="text-align:right;"><span id="lblEAPFT2">140</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPPT2">18</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPFTE2">146</span></td>
+</tr>
+<tr id="Tr5">
+<td class="" style="width: 350px; padding-left:60px;">Staff whose primary responsibility is instruction, research, and/or public service</td>
+<td class="" style="text-align:right;"><span id="lblEAPFT3">70</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPPT3">17</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPFTE3">76</span></td>
+</tr>
+<tr class="alt" id="Tr6">
+<td class="" style="width: 350px; padding-left:90px;">Primary instruction</td>
+<td class="" style="text-align:right;"><span id="lblEAPFT4">55</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPPT4">15</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPFTE4">60</span></td>
+</tr>
+<tr id="Tr7">
+<td class="" style="width: 350px; padding-left:90px;">Instruction/research/public service</td>
+<td class="" style="text-align:right;"><span id="lblEAPFT5"></span></td>
+<td class="" style="text-align:right;"><span id="lblEAPPT5"></span></td>
+<td class="" style="text-align:right;"><span id="lblEAPFTE5"></span></td>
+</tr>
+<tr class="alt" id="Tr8">
+<td class="" style="width: 350px; padding-left:90px;">Primarily research</td>
+<td class="" style="text-align:right;"><span id="lblEAPFT6">15</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPPT6">2</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPFTE6">16</span></td>
+</tr>
+<tr id="Tr9">
+<td class="" style="width: 350px; padding-left:90px;">Primarily public service</td>
+<td class="" style="text-align:right;"><span id="lblEAPFT7"></span></td>
+<td class="" style="text-align:right;"><span id="lblEAPPT7"></span></td>
+<td class="" style="text-align:right;"><span id="lblEAPFTE7"></span></td>
+</tr>
+<tr class="alt" id="Tr10">
+<td class="" style="width: 350px; padding-left:60px;">Executive/administrative/managerial</td>
+<td class="" style="text-align:right;"><span id="lblEAPFT8">40</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPPT8">1</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPFTE8">40</span></td>
+</tr>
+<tr id="Tr11">
+<td class="" style="width: 350px; padding-left:60px;">Other professionals (support/service)</td>
+<td class="" style="text-align:right;"><span id="lblEAPFT9">30</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPPT9">0</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPFTE9">30</span></td>
+</tr>
+<tr class="alt" id="Tr12">
+<td class="" style="width: 350px; padding-left:30px; font-weight:bold;">Non-professional staff</td>
+<td class="" style="text-align:right;"><span id="lblEAPFT10">39</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPPT10">6</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPFTE10">41</span></td>
+</tr>
+<tr id="Tr13">
+<td class="" style="width: 350px; padding-left:60px;">Technical and paraprofessional</td>
+<td class="" style="text-align:right;"><span id="lblEAPFT11"></span></td>
+<td class="" style="text-align:right;"><span id="lblEAPPT11"></span></td>
+<td class="" style="text-align:right;"><span id="lblEAPFTE11"></span></td>
+</tr>
+<tr class="alt" id="Tr14">
+<td class="" style="width: 350px; padding-left:60px;">Clerical/secretarial</td>
+<td class="" style="text-align:right;"><span id="lblEAPFT12">26</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPPT12">5</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPFTE12">28</span></td>
+</tr>
+<tr id="Tr15">
+<td class="" style="width: 350px; padding-left:60px;">Skilled crafts</td>
+<td class="" style="text-align:right;"><span id="lblEAPFT13">3</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPPT13">0</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPFTE13">3</span></td>
+</tr>
+<tr class="alt" id="Tr16">
+<td class="" style="width: 350px; padding-left:60px;">Service/Maintenance</td>
+<td class="" style="text-align:right;"><span id="lblEAPFT14">10</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPPT14">1</span></td>
+<td class="" style="text-align:right;"><span id="lblEAPFTE14">10</span></td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+<tr>
+<td class="" style="font-family:Verdana;">NOTE:  Full-time-equivalent (FTE) staff is calculated by summing the total number of full-time staff from the Employees by Assigned Position (EAP) section of the IPEDS HR component and adding one-third of the total number of part-time staff from the EAP section.  Graduate assistants are not included in the above figures.  Many of the FTE figures are included in the DFR.</td>
+</tr>
+</tbody></table>
+<br/>
+<table class="grid" id="tblSalaries" style="width:600px">
+<tbody><tr id="Tr35">
+<th class="" style="border-top:none; font-family:Verdana; font-size:12px; font-weight:bold; color:#336699;">Salaries of full-time instructional staff by contract length and academic rank: Academic year 2010-11</th>
+</tr>
+<tr>
+<td>
+<table class="grid" style="width:100%">
+<tbody><tr id="Tr17">
+<td class="" style="width: 90px; vertical-align:middle;text-align:center; font-weight:bold;border-bottom:none;">Academic rank</td>
+<td class="" colspan="4" style="text-align:center; font-weight:bold;">Reported values</td>
+<td class="" colspan="2" style="vertical-align:middle;text-align:center; font-weight:bold;border-bottom:none;">Equated 9-month</td>
+</tr>
+<tr id="Tr18">
+<td style="border-top:none;border-bottom:none;"> </td>
+<td class="" colspan="2" style="text-align:center; font-weight:bold;">Full-time instructional<br/>staff on<br/>9/10-month contracts </td>
+<td class="" colspan="2" style="text-align:center; font-weight:bold;">Full-time instructional<br/>staff on<br/>11/12-month contracts</td>
+<td colspan="2" style="border-top:none;"> </td>
+</tr>
+<tr id="Tr22">
+<td style="border-top:none;"> </td>
+<td class="" style="text-align:center; font-weight:bold;">Number of staff</td>
+<td class="" style="text-align:center; font-weight:bold;">Salary outlays</td>
+<td class="" style="text-align:center; font-weight:bold;">Number of staff</td>
+<td class="" style="text-align:center; font-weight:bold;">Salary outlays</td>
+<td class="" style="text-align:center; font-weight:bold;">Number of staff</td>
+<td class="" style="text-align:center; font-weight:bold;">Average salaries</td>
+</tr>
+<tr class="alt" id="Tr19">
+<td class="" style="width: 90px; font-weight:bold;">All Ranks</td>
+<td class="" style="width: 80px;text-align:right;"><span id="lblSalary11">55</span></td>
+<td class="" style="width: 90px;text-align:right;"><span id="lblSalary12">$2,824,322</span></td>
+<td class="" style="width: 80px;text-align:right;"><span id="lblSalary13"></span></td>
+<td class="" style="width: 90px;text-align:right;"><span id="lblSalary14"></span></td>
+<td class="" style="width: 80px;text-align:right;"><span id="lblSalary15">55</span></td>
+<td class="" style="width: 90px;text-align:right;"><span id="lblSalary16">$51,351</span></td>
+</tr>
+<tr id="Tr21">
+<td class="" style="width: 90px; padding-left:30px;">Professor</td>
+<td class="" style="text-align:right;"><span id="lblSalary21">8</span></td>
+<td class="" style="text-align:right;"><span id="lblSalary22">$538,829</span></td>
+<td class="" style="text-align:right;"><span id="lblSalary23"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary24"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary25">8</span></td>
+<td class="" style="text-align:right;"><span id="lblSalary26">$67,354</span></td>
+</tr>
+<tr class="alt" id="Tr26">
+<td class="" style="width: 90px; padding-left:30px;">Associate professor</td>
+<td class="" style="text-align:right;"><span id="lblSalary31">29</span></td>
+<td class="" style="text-align:right;"><span id="lblSalary32">$1,527,346</span></td>
+<td class="" style="text-align:right;"><span id="lblSalary33"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary34"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary35">29</span></td>
+<td class="" style="text-align:right;"><span id="lblSalary36">$52,667</span></td>
+</tr>
+<tr id="Tr27">
+<td class="" style="width: 90px; padding-left:30px;">Assistant professor</td>
+<td class="" style="text-align:right;"><span id="lblSalary41">11</span></td>
+<td class="" style="text-align:right;"><span id="lblSalary42">$521,192</span></td>
+<td class="" style="text-align:right;"><span id="lblSalary43"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary44"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary45">11</span></td>
+<td class="" style="text-align:right;"><span id="lblSalary46">$47,381</span></td>
+</tr>
+<tr class="alt" id="Tr28">
+<td class="" style="width: 90px; padding-left:30px;">Instructor</td>
+<td class="" style="text-align:right;"><span id="lblSalary51"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary52"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary53"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary54"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary55"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary56"></span></td>
+</tr>
+<tr id="Tr20">
+<td class="" style="width: 90px; padding-left:30px;">Lecturer</td>
+<td class="" style="text-align:right;"><span id="lblSalary61">7</span></td>
+<td class="" style="text-align:right;"><span id="lblSalary62">$236,955</span></td>
+<td class="" style="text-align:right;"><span id="lblSalary63"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary64"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary65">7</span></td>
+<td class="" style="text-align:right;"><span id="lblSalary66">$33,851</span></td>
+</tr>
+<tr class="alt" id="Tr29">
+<td class="" style="width: 90px; padding-left:30px;">No academic rank</td>
+<td class="" style="text-align:right;"><span id="lblSalary71"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary72"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary73"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary74"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary75"></span></td>
+<td class="" style="text-align:right;"><span id="lblSalary76"></span></td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+<tr>
+<td class="" style="font-family:Verdana;">NOTE:  The above data are based on the Salaries section of the IPEDS HR component. The number of equated 9-month full-time instructional staff is the sum of staff on 9/10-month and 11/12-month contracts.  The equated 9-month average salaries of full-time instructional staff (by rank) are calculated by multiplying the salary outlays (by rank) for staff on 11/12-month contracts by 0.8182 then adding the salary outlays (by rank) for staff on 9/10-month contracts.  The resulting sum is then divided by the number of equated 9-month full-time instructional staff (by rank) to determine an average salary for each rank.  Salaries of full-time instructional staff on less-than-9-month contracts are not collected.  Also, salaries of medical school staff are not collected.  The equated 9-month average salaries are included in the DFR.</td>
+</tr>
+</tbody></table>
+</div>
+</div><br style="page-break-before:always"/>
+</td>
+</tr>
+</tbody></table>
+</td>
+</tr>
+<tr>
+<td> </td>
+</tr>
+</tbody></table>
+</div>
+<div style="text-align:left">
+                    
+        		                  
+                    
+        </div></div>
+</div>
+</form>
+<div class="top"><a href="#top">Back to top</a></div>
+</body></html>
