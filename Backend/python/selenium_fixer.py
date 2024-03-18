@@ -11,7 +11,7 @@ def get_website_data_edge(url):
     options.add_argument("--headless")  # Runs Edge in headless mode
 
     # Specify the path to Edge WebDriver
-    service = Service(executable_path="/private/var/folders/q3/4pxd96fs1wz9p3thd1ln5_c40000gn/T/MicrosoftEdgeDownloads/d2bf7152-8e5a-46a4-bd50-2ff10e4ab8ac/edgedriver_mac64_m1/msedgedriver")
+    service = Service(executable_path="path")
 
     # Initialize the WebDriver
     driver = webdriver.Edge(service=service, options=options)

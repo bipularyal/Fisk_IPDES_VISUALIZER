@@ -2,7 +2,7 @@ import math
 import pandas as pd
 
 # Load the data from the Excel file
-df = pd.read_excel('/Users/bipularyal/Desktop/FISK_IPDES_Proj/Backend/Excel/Major_Sheet_P3.xlsx')
+df = pd.read_excel('fielname')
 
 df[['CIPCode', 'Major']] = df['Code'].str.split(' - ', expand=True)
 df[['Type', 'Degree']] = df['Degree'].str.split(' - ', expand=True)
@@ -23,4 +23,4 @@ df.drop(columns=['Code'], inplace=True)
 df.drop(columns=['Type'], inplace=True)
 
 # Save the final DataFrame to a new Excel file
-df.to_excel('/Users/bipularyal/Desktop/FISK_IPDES_Proj/Backend/Excel/Final_Completion_Major_List.xlsx', index=False)
+df.to_excel('filename', index=False)

@@ -1,7 +1,7 @@
 import pandas as pd
 
 # Load the Excel file
-file_path = '/Users/bipularyal/Desktop/FISK_IPDES_Proj/Backend/Excel/Completons_By_Major.xlsx'
+file_path = 'path'
 df = pd.read_excel(file_path)
 
 # Initialize an empty list to store the DataFrames for each year
@@ -36,7 +36,7 @@ for i in range(num_years):
 long_format_df = pd.concat(data_frames).reset_index(drop=True)
 print(long_format_df)
 # Save the reshaped DataFrame into a new Excel file
-output_file_path = '/Users/bipularyal/Desktop/FISK_IPDES_Proj/Backend/Excel/Major_Sheet_Initial.xlsx'
+output_file_path = 'path'
 long_format_df.to_csv(output_file_path, index=False)
 long_format_df.to_excel(output_file_path, index=False)
 

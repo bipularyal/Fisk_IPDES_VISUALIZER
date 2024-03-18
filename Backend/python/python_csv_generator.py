@@ -70,7 +70,7 @@ def save_tables_as_html(soup, temp_folder):
 fileNames = []
 name = 'Fall_Enrollment.html'
 for i in range(2020,2023):
-    folderPath = f'../../HTML_files/year_{i}/{name}'
+    folderPath = f'path'
     if os.path.exists(folderPath):
         fileNames.append((folderPath,f'{i}'))
 print(fileNames)
@@ -85,7 +85,7 @@ for each in fileNames:
     # temp_folder = os.path.join(project_directory, 'temp')
     # paths = save_tables_as_html(data,temp_folder)
     # process_tables(temp_folder,each[1],each)
-    directory_path = f'../CSV_data/Fall_enrollment_Data/{each[1]}'
+    directory_path = f'path'
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
     with open(f'{directory_path}/{each[1]}.html','w') as f:

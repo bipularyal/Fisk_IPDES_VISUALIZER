@@ -22,6 +22,6 @@ def openAllOfCategory(category,dir_path):
             print("error. Not saved")
             return
         print(f"\n\n\n WoooooHOOOO with {category} od year {each} \n\n\n")
-dir_path = '/Users/bipularyal/Desktop/FISK_IPDES_Proj/HTML_files/'
+dir_path = 'filepath'
 category = "Admissions_and_Test_Scores"
 openAllOfCategory(category,dir_path)

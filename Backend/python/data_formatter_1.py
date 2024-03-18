@@ -2,9 +2,9 @@ import math
 import pandas as pd
 
 # Load the data from the Excel file
-df = pd.read_excel('/Users/bipularyal/Desktop/FISK_IPDES_Proj/Backend/Excel/Major_Sheet_P2.xlsx')
+df = pd.read_excel('path')
 cleaned_df = df.dropna(subset=['Code', 'Degree'], how='all')
-df.to_excel('/Users/bipularyal/Desktop/FISK_IPDES_Proj/Backend/Excel/Major_Sheet_P2.xlsx', index=False)
+df.to_excel('path', index=False)
 
 # Create new columns initialized with zeros
 df['Men'] = 0
@@ -38,4 +38,4 @@ df = df.iloc[::3, :].reset_index(drop=True)
 df.drop('Gender', axis=1, inplace=True)
 
 # Save the modified DataFrame to a new Excel file
-df.to_excel('/Users/bipularyal/Desktop/FISK_IPDES_Proj/Backend/Excel/Major_Sheet_P2.xlsx', index=False)
+df.to_excel('path', index=False)
