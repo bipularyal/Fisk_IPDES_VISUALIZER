@@ -1,0 +1,18 @@
+.range_data{
+    margin-top: 2rem;
+    display: flex;
+    width: 100%;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    .selector-container{
+        width: 100%;
+    }
+    .selector-container:nth-of-type(2){
+        padding: 0 0 0 1rem;
+    }
+}
+.range-selector-form{
+
+    margin: 0 3rem;
+}

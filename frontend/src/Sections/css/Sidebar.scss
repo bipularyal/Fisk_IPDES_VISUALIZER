@@ -1,0 +1,35 @@
+.formSelector{
+    width: 100%;
+    text-align: center;
+
+}
+
+.selection-buttons {
+    display: flex;
+    justify-content: space-around; /* This spreads the buttons out evenly */
+    margin-bottom: 20px; /* Adds some space below the button container */
+  }
+  
+  .selection-buttons button {
+    padding: 10px 20px;
+    border: 2px solid #007bff; /* A blue border */
+    background-color: white;
+    color: #007bff;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    outline: none; /* Removes the outline */
+    transition: all 0.3s; /* Smooth transition for hover and focus states */
+  }
+  
+  .selection-buttons button:hover,
+  .selection-buttons button:focus {
+    background-color: #0055ff; /* Changes background on hover/focus */
+    color: white;
+  }
+  
+  .selection-buttons button.active {
+    background-color: #007bff; /* Active button has a solid background */
+    color: white;
+  }
+  
