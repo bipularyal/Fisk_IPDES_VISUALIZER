@@ -1,0 +1,15 @@
+.chart-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centers horizontally in a flex column */
+    justify-content: center; /* Centers vertically in a flex column */
+    text-align: center; /* Centers the text of direct child elements */
+    height: 100%; /* Make sure it takes the full height of its container */
+    margin: auto; /* If .chart-area is not a flex item, this centers it within its parent horizontally */
+    padding: 20px; /* Add padding if needed */
+  }
+  
+  h2 {
+    margin-bottom: 20px; /* Adds some space below the title */
+  }
+  

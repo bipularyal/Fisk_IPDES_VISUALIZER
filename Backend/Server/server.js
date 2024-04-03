@@ -1,9 +1,29 @@
 const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+const cors = require('cors');
 
 const app = express();
 
-app.get('/', (req, res) => {
-  res.send('Successful response.');
+
+const PORT = process.env.PORT || 4000;
+app.use(cors()); // Enable CORS for development
+const yearAPIs = require('./year_apis');
+const rangeAPIs = require('./range_apis');
+
+// Use the imported routers for specific routes
+app.use('/api/year', yearAPIs);
+app.use('/api/range', rangeAPIs);
+
+const db = new sqlite3.Database(path.join(__dirname, 'path/to/your/database.db'), sqlite3.OPEN_READONLY, (err) => {
+  if (err) {
+    console.error('Error opening database', err);
+  } else {
+    console.log('Connected to the SQLite database.');
+  }
 });
 
-app.listen(3000, () => console.log('Example app is listening on port 3000.'));
+
+app.listen(PORT, () => {
+  console.log(`Server is listening on port ${PORT}`);
+});
