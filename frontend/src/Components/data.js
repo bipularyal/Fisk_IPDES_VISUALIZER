@@ -47,11 +47,11 @@ const rangeData = {
     "nonresident_alien"
   ],
   FallEnrollmentStats: ["totalEnrollment", "undergradEnrollment", "gradEnrollment", "studentFacultyRatio", "percentOfFemaleStudent"],
-  GraduationRateEightYears: ["cohortToGradCount", "eightYearsGrad", "eightYearsGradRate"],
+  GraduationRateEightYears: ["cohortToGradCount", "eightYearsGradCount", "eightYearsGradRate"],
   GraduationRates: ["malecohortToGradCount", "femaleCohortToGradCount", "totalCohortToGradCount", "gradRate"],
   Library: ["physicalBooksCount", "digitalBooksCount", "totalBooksCount", "totalCollectionCount", "totalPhysicalCollectionCount", "totalDigitalCollectionCount"],
   Revenues: ["total", "revenueFromTuition", "revenueperFTE", "revenueFromPrivateSource", "revenueFromGovernmentSources"],
-  StudentAid: ["totalAid", "percentOfAidReceivers", "averageAid", "percentOfAidReceivers", "averageInstitutionalAid"],
+  StudentAid: ["totalAid", "percentOfAidReceivers", "averageAid", "averageInstitutionalAid"],
   TotalAssets: ["totalNetAssets"]
     };
 

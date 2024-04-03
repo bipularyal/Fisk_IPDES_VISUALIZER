@@ -51,7 +51,7 @@ const rangeData = {
     GraduationRates: ["malecohortToGradCount", "femaleCohortToGradCount", "totalCohortToGradCount", "gradRate"],
     Library: ["physicalBooksCount", "digitalBooksCount", "totalBooksCount", "totalCollectionCount", "totalPhysicalCollectionCount", "totalDigitalCollectionCount"],
     Revenues: ["total", "revenueFromTuition", "revenueperFTE", "revenueFromPrivateSource", "revenueFromGovernmentSources"],
-    StudentAid: ["totalAid", "percentOfAidReceivers", "averageAid", "percentOfAidReceivers", "averageInstitutionalAid"],
+    StudentAid: ["totalAid", "percentOfAidReceivers", "averageAid", "averageInstitutionalAid"],
     TotalAssets: ["totalNetAssets"]
     };
 
@@ -68,10 +68,39 @@ const individualData = {
 
 const rangeQueries = {
   TwelveMonthEnrollment: {
-    malefemalehc: "SELECT year, malehc as MaleCount, femaleHC as FemaleCount FROM TwelveMonthEnrollment WHERE year BETWEEN ? AND ? GROUP BY year",
-    // Add more queries as needed
+    malefemalehc: "SELECT year, malehc as MaleCount, femaleHC as FemaleCount FROM TwelveMonthEnrollment WHERE year BETWEEN ? AND ?",
   },
-  // Add more dataTypes as needed
+  AdmissionsData: {
+  },
+  CompletionByMajor:{
+    all:"SELECT year, total FROM CompletionByMajor WHERE year BETWEEN ? AND ? AND major = ?",
+  },
+  CompletionStats:{
+
+  },
+  CostOfAttendence:{
+    total: "SELECT year, total FROM CostOfAttendence WHERE year BETWEEN ? AND ?"
+  },
+  FallEnrollmentByRace:{
+
+  },
+  FallEnrollmentStats:{
+
+  },
+  GraduationRateEightYears:{
+    cohortToGradCount:"SELECT year, cohort as Cohort, eightYearsGradCount as GradCount FROM GraduationRateEightYears WHERE year BETWEEN ? AND ?"
+  },
+  GraduationRates:{
+    malecohortToGradCount:"SELECT year, male_cohort as Cohort, male_completers as GradCount FROM GraduationRates WHERE year BETWEEN ? AND ?",
+    femaleCohortToGradCount:"SELECT year, female_cohort as Cohort, female_completers as GradCount FROM GraduationRates WHERE year BETWEEN ? AND ?",
+    totalCohortToGradCount:"SELECT year, total_cohort as Cohort, totalCohortToGradCount as GradCount FROM GraduationRates WHERE year BETWEEN ? AND ?"
+  },
+  StudentAid:{
+
+  },
+  TotalAssets:{
+
+  }
 };
 
 
