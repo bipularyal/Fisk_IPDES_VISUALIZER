@@ -1,5 +1,4 @@
-.range_data{
-    margin-top: 2rem;
+.range-data{
     display: flex;
     width: 100%;
     text-align: center;
@@ -13,6 +12,22 @@
     }
 }
 .range-selector-form{
-
     margin: 0 3rem;
 }
+
+// In RangeSelector.scss
+
+.range-selector-form .form-button {
+    background-color: #007bff; /* Blue */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .range-selector-form .form-button:hover {
+    background-color: #0056b3; /* Darker blue */
+  }
+  

@@ -2,8 +2,8 @@
 # import sqlite3
 
 # # # Load the CSV file
-# FileNames = ["Twelve Month Enrollment", "Admissions Data", "Completion Stats","Cost Of Attendence","Expenses","Fall Enrollment By Race","Completion By Major","Graduation Rate Eight Years","Graduation Rates","Library Digital", "Library Physical","Revenues","Student Aid","Total Assets"]
-# TableNames = ["TwelveMonthEnrollment","AdmissionsData","CompletionStats","CostOfAttendence","Expenses","FallEnrollmentByRace","CompletionByMajor","GraduationRateEightYears","GraduationRates","LibraryDigital","LibraryPhysical","Revenues","StudentAid","TotalAssets"]
+# FileNames = ["Twelve Month Enrollment", "Admissions Data", "Completion Stats","Cost Of Attendence","Expenses","Fall Enrollment By Race","Completion By Major","Graduation Rate Eight Years","Graduation Rates","Library Digital", "Library Physical","Revenues","Student Aid","Total Assets", "Fall Enrollment Stats"]
+# TableNames = ["TwelveMonthEnrollment","AdmissionsData","CompletionStats","CostOfAttendence","Expenses","FallEnrollmentByRace","CompletionByMajor","GraduationRateEightYears","GraduationRates","LibraryDigital","LibraryPhysical","Revenues","StudentAid","TotalAssets", "FallEnrollmentStats"]
 
 # for i in range(len(FileNames)):
 #     file_path = f'../Excel/{FileNames[i]}.xlsx'  # Change this to your file's path
@@ -21,10 +21,7 @@
 #         print(column)
 
 #     table_name = TableNames[i]
-#     primary_name = "year"
-#     # Ensure the primary key exists in the columns
-#     if "id" in df.columns:
-#         primary_name = "id"
+#     primary_name = "id" if "id" in df.columns else "year"
 #     # Create or connect to SQLite database
 #     conn = sqlite3.connect('../Database/ipdes_database.db')
 #     cursor = conn.cursor()

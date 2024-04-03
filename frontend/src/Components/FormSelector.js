@@ -3,7 +3,6 @@ import React from 'react';
 import './css/FormSelector.scss'; // Your CSS for this new selector component
 
 function Selector({ label, options, onChange }) {
-
   return (
     <div className="selector-container">
       {label && <label>{label}</label>}

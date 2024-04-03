@@ -1,39 +1,33 @@
 // range_apis.js
 const express = require('express');
 const router = express.Router();
+const sqlite3 = require('sqlite3').verbose();
+const { rangeQueries, individualData } = require('./data.js');
+const db = require('./database'); // Adjust the path to where your database.js file is
 
-// Endpoint to get available details based on the dataType
-router.get('/getAvailableDetails/:dataType', (req, res) => {
-    const { dataType } = req.params;
-
-    // Here you would query your database or lookup a dictionary to find available details
-    // based on the dataType. This is a mock response.
-    const details = {
-        enrollment: ["Race", "Gender", "Major"],
-        // Add other dataTypes and their details as needed
-    };
-
-    res.json({
-        dataType,
-        details: details[dataType] || []
-    });
-});
 
 // Endpoint to get data based on a range
-router.get('/getData', (req, res) => {
+router.get('', (req, res) => {
     const { startYear, endYear, dataType, detail } = req.query;
 
     // Mock database query response
-    const data = `Fetched data for ${dataType} from ${startYear} to ${endYear} with detail: ${detail}`;
+    const data = `Fetched range data for ${dataType} from ${startYear} to ${endYear} with detail: ${detail}`;
 
-    res.json({
-        message: "Fetched range data",
-        startYear,
-        endYear,
-        dataType,
-        detail,
-        data // Replace with actual database query result
+    let query = `SELECT year, ${detail} FROM ${dataType} WHERE year BETWEEN ? AND ? GROUP BY year`
+      if (rangeQueries[dataType][detail]){
+        const query = rangeQueries[dataType][detail];
+      }
+    
+
+    db.all(query, [startYear, endYear], (err, rows) => {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ success: false, message: 'Internal server error' });
+        }
+        console.log(rows)
+        heading = `${dataType} --- ${detail}`
+        res.json({ success: true, data: rows, type: "bar", label:heading});
+      });
     });
-});
 
 module.exports = router;

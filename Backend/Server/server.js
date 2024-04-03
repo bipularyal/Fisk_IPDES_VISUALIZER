@@ -15,7 +15,7 @@ const rangeAPIs = require('./range_apis');
 app.use('/api/year', yearAPIs);
 app.use('/api/range', rangeAPIs);
 
-const db = new sqlite3.Database(path.join(__dirname, 'path/to/your/database.db'), sqlite3.OPEN_READONLY, (err) => {
+const db = new sqlite3.Database(path.join(__dirname, '../Database/ipdes_database.db'), sqlite3.OPEN_READONLY, (err) => {
   if (err) {
     console.error('Error opening database', err);
   } else {
