@@ -16,8 +16,7 @@ function ChartArea() {
   return (
     <div className="chart-area">
       {data ? <h2>{data.label}</h2> : <h2>This section will show the graph when data is available</h2>}
-      {/* If you have a chart component, render it here conditionally as well */}
-      {data && <ChartComponent data={data.data} type={data.type}/>}
+      {data && data.values && <ChartComponent values={data.values} type={data.type}/>}
     </div>
   );
 }

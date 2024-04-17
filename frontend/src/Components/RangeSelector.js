@@ -13,6 +13,7 @@ function RangeSelectorForm() {
   const [detail, setDetail] = useState('');
   const [detailsOptions, setDetailsOptions] = useState([]);
   const { setData } = useContext(DataContext);
+
   useEffect(() => {
     // Update details/options when dataType changes
     const initialDetailsOptions = rangeData[dataType] || [];
@@ -38,6 +39,7 @@ function RangeSelectorForm() {
   try {
     const response = await fetch(url); // Send the GET request
     const data = await response.json(); // Assuming the server responds with JSON
+    
     setData(data); // Set the fetched data in context
     // console.log(data); // Process the data as needed, e.g., updating state to re-render the chart
   } catch (error) {

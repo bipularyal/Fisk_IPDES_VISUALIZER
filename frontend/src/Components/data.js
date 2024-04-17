@@ -1,6 +1,6 @@
 const rangeData = {
   TwelveMonthEnrollment: ["malehc", "femalehc", "totalhc", "gradhc", "undergradhc", "malefemalehc"],
-  AdmissionsData: ["applicants", "percentageAdmitted", "percEnrolled", "admittedWhoEnrolled", "totalEnrolled"],
+  AdmissionsData: ["applicants", "percentageAdmitted", "percEnrolled", "totalEnrolled"],
   CompletionByMajor: [
     "Computer and Information Sciences, General",
     "Special Education and Teaching, General",
@@ -34,7 +34,7 @@ const rangeData = {
   ],
   CompletionStats: ["men", "women", "bacholers", "masters", "total"],
   CostOfAttendence: ["tuitionandfees", "booksAndSupplies", "roomAndBoard", "other", "total"],
-  Expenses: ["total", "moneySpentonInstruction", "moneySpentonResearch", "totalPerFTE"],
+  Expenses: ["total", "moneySpentonInstruction", "moneySpentonResearch", "totalPerFTE","expensesToRevenue"],
   FallEnrollmentByRace: [
     "american_indian_or_alaska_native",
     "asian",
@@ -49,18 +49,18 @@ const rangeData = {
   FallEnrollmentStats: ["totalEnrollment", "undergradEnrollment", "gradEnrollment", "studentFacultyRatio", "percentOfFemaleStudent"],
   GraduationRateEightYears: ["cohortToGradCount", "eightYearsGradCount", "eightYearsGradRate"],
   GraduationRates: ["malecohortToGradCount", "femaleCohortToGradCount", "totalCohortToGradCount", "gradRate"],
-  Library: ["physicalBooksCount", "digitalBooksCount", "totalBooksCount", "totalCollectionCount", "totalPhysicalCollectionCount", "totalDigitalCollectionCount"],
-  Revenues: ["total", "revenueFromTuition", "revenueperFTE", "revenueFromPrivateSource", "revenueFromGovernmentSources"],
+  Library: ["physicalBooksCount", "digitalBooksCount","totalPhysicalCollectionCount", "totalDigitalCollectionCount"],
+  Revenues: ["total", "revenueFromTuition", "revenueperFTE", "revenueFromPrivateSource", "revenueFromGovernmentSources","revenuesToExpenses"],
   StudentAid: ["totalAid", "percentOfAidReceivers", "averageAid", "averageInstitutionalAid"],
   TotalAssets: ["totalNetAssets"]
     };
 
 const individualData = {
     TwelveMonthEnrollment: ["Degree Stats", "Gender Stats"],
-    CompletionStats: ["Completion Stats by Gender", "Completion Stats by Degree Type"],
+    CompletionStats: ["Completion Stats by Gender", "Completion Stats by Degree Type","Bacholers Completion Stats by Major"],
     Expenses: ["Expenses by Value", "Expenses by Percentage", "Expenses per FTE"],
     FallEnrollmentByRace: ["Enrollment by Race"],
-    FallEnrollmentStats: ["Enrollment by Degree", "Enrollment by Gender"],
+    FallEnrollmentStats: ["Enrollment by Degree"],
     GraduationRateEightYears: ["Graduation Percentage", "Graduation Count"],
     GraduationRates: ["Cohort to Completors"],
     Revenues: ["Revenue by Value", "Revenue by Percentage", "Revenue per FTE"]

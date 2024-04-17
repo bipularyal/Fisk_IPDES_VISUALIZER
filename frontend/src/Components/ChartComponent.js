@@ -8,7 +8,7 @@ import {
 import 'chart.js/auto'; // Chart.js >= 3 requires this import
 
 // Function to generate chart datasets
-const generateChartDataset = (data, chartType) => {
+const generateChartDataset = (data, chartType,params) => {
   const backgroundColors = {
     bar: 'rgba(255, 99, 132, 0.2)',
     pie: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C'],
@@ -22,26 +22,43 @@ const generateChartDataset = (data, chartType) => {
     line: 'rgba(75,192,192,1)',
     // Add more or customize as needed
   };
-  const datasetKeys = Object.keys(data[0]).filter(key => key !== 'year');
-  return {
-    labels: data.map(d => d.year),
-    datasets: [
-      {
-        label: 'Dataset',
-        data: data.map(d => {
-            return (d[datasetKeys[0]])}),
-        backgroundColor: backgroundColors[chartType],
-        borderColor: borderColors[chartType],
-        borderWidth: 1,
-      },
-    ],
-  };
+  if (params != "year_single"){
+    const datasetKeys = Object.keys(data[0]).filter(key => key.toLowerCase() !== 'year');
+    const labels = Object.keys(data[0]).filter(key => key.toLowerCase() == 'year');
+    const datasets = datasetKeys.map(key =>({
+          label: key,
+          data: data.map(d => parseFloat(d[key])),
+          backgroundColor: backgroundColors[chartType],
+          borderColor: borderColors[chartType],
+          borderWidth: 1,
+    }))
+    return {
+      labels: data.map(d => d[labels]),
+      datasets: datasets
+    };
+  }
+  else{
+    const datasetKeys = Object.keys(data[0]).filter(key => key.toLowerCase() !== 'year');
+    const labels = Object.keys(data[0]).filter(key => key.toLowerCase() == 'year');
+    const datasets = datasetKeys.map(key =>({
+          label: key,
+          data: data.map(d => parseFloat(d[key])),
+          backgroundColor: backgroundColors[chartType],
+          borderColor: borderColors[chartType],
+          borderWidth: 1,
+    }))
+    return {
+      labels: data.map(d => d[labels]),
+      datasets: datasets
+    };
+  }
+
 };
 
-const ChartComponent = ({ data, type }) => {
+const ChartComponent = ({ values, type }) => {
   // Assuming 'data' is an array with items like: { year: 2020, value: 10 }
-  console.log(data,type, " inside chart")
-  const chartData = generateChartDataset(data, type);
+  console.log(values,type, " inside chart")
+  const chartData = generateChartDataset(values, 'bar',type);
 
   const chartOptions = {
     responsive: true,
@@ -55,7 +72,7 @@ const ChartComponent = ({ data, type }) => {
   };
 
   // Render the appropriate chart based on 'type'
-  switch (type) {
+  switch ('bar') {
     case 'bar':
       return <Bar data={chartData} options={chartOptions} className='graphWidthAdjuster'/>;
     case 'pie':
