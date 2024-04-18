@@ -29,9 +29,7 @@ router.get('', (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal server error' });
       }
       console.log(rows)
-      heading = `${dataType} --- ${detail}`
-      let type = "range"
-      res.json({ success: true, values: rows, type: type, label:heading});
+      res.json({ success: true, values: rows, type: "range", section:dataType, subSection: detail});
     });
   });
 

@@ -10,27 +10,27 @@ import 'chart.js/auto'; // Chart.js >= 3 requires this import
 // Function to generate chart datasets
 const generateChartDataset = (data, chartType,params) => {
   const backgroundColors = {
-    bar: 'rgba(255, 99, 132, 0.2)',
+    bar: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C'],
     pie: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C'],
-    line: 'rgba(75,192,192,0.4)',
+    line: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C'],
     // Add more or customize as needed
   };
 
   const borderColors = {
-    bar: 'rgba(255,99,132,1)',
+    bar: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C'],
     pie: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C'],
-    line: 'rgba(75,192,192,1)',
+    line: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C'],
     // Add more or customize as needed
   };
 
   if (params == "range"){
     const datasetKeys = Object.keys(data[0]).filter(key => key.toLowerCase() !== 'year');
     const labels = Object.keys(data[0]).filter(key => key.toLowerCase() == 'year');
-    const datasets = datasetKeys.map(key =>({
+    const datasets = datasetKeys.map((key,idx) =>({
           label: key,
           data: data.map(d => parseFloat(d[key])),
-          backgroundColor: backgroundColors[chartType],
-          borderColor: borderColors[chartType],
+          backgroundColor: backgroundColors[chartType][idx],
+          borderColor: borderColors[chartType][idx],
           borderWidth: 1,
     }))
 
@@ -45,8 +45,8 @@ const generateChartDataset = (data, chartType,params) => {
     const dataPoints = Object.values(entry).map(value => parseFloat(value)); // Convert string to number  
     const datasets =  [{
       label: 'Total', // Customize this label as needed
-      backgroundColor: backgroundColors[chartType],
-      borderColor: borderColors[chartType],
+      backgroundColor: chartType == "pie"? backgroundColors[chartType]:backgroundColors[chartType][0],
+      borderColor: chartType == "pie"? borderColors[chartType]:borderColors[chartType][0],
       data: dataPoints,
       borderWidth: 1
     }]
