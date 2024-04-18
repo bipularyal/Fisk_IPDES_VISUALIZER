@@ -52,7 +52,6 @@ const generateChartDataset = (data, chartType,params) => {
       datasets: datasets
     };
   }
-
 };
 
 const ChartComponent = ({ values, type }) => {

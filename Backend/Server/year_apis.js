@@ -16,8 +16,16 @@ router.get('', (req, res) => {
         console.error('Database error:', err);
         return res.status(500).json({ success: false, message: 'Internal server error' });
       }
+
+      if (rows.length > 0 && 'key' in rows[0] && 'value' in rows[0]){
+        const values = {}
+        for (const item in rows){
+          values[rows[item]['key']] = rows[item]['value']
+        }
+        rows = [values]
+      }
+      const heading = "year_single"
       console.log(rows)
-      heading = `${dataType} --- ${detail}`
       res.json({ success: true, values: rows, type: "year_single", label:heading});
     });
 
