@@ -8,7 +8,7 @@ const db = require('./database'); // Adjust the path to where your database.js f
 
 // Endpoint to get data based on a range
 router.get('', (req, res) => {
-  const { startYear, endYear, dataType, detail } = req.query;
+  const { startYear, endYear, dataType, detail,chartType } = req.query;
 
   // Mock database query response
   // const data = `Fetched range data for ${dataType} from ${startYear} to ${endYear} with detail: ${detail}`;
@@ -29,7 +29,7 @@ router.get('', (req, res) => {
         return res.status(500).json({ success: false, message: 'Internal server error' });
       }
       console.log(rows)
-      res.json({ success: true, values: rows, type: "range", section:dataType, subSection: detail});
+      res.json({ success: true, values: rows, dataType: "range", section:dataType, subSection: detail,chartType:chartType});
     });
   });
 

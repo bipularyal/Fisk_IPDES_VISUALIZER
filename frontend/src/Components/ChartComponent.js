@@ -8,29 +8,29 @@ import {
 import 'chart.js/auto'; // Chart.js >= 3 requires this import
 
 // Function to generate chart datasets
-const generateChartDataset = (data, chartType,params) => {
+const generateChartDataset = (data, chartType,dataType) => {
   const backgroundColors = {
     bar: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C'],
-    pie: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C'],
+    pie: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C','#F464F4', '70B309C', '#000E56', '#E7EDFF', '#717CB5','#0652b5', '#d57c3d', '#94b43f', '#67736f', '#954785','#1a423c', '#f113fa', '#48d6bb', '#27ed0c', '#55ecfb','#e1f0da', '#b15b46', '#30e203', '#c0d3ff', '#d52cbc'],
     line: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C'],
     // Add more or customize as needed
   };
 
   const borderColors = {
     bar: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C'],
-    pie: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C'],
+    pie: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C','#F46464', '70B3F9C', '#00CE56', '#E7EDE9', '#717CB5','#0652b5', '#d57c3d', '#94b43f', '#67736f', '#954785','#1a423c', '#f113fa', '#48d6bb', '#27ed0c', '#55ecfb','#e1f0da', '#b15b46', '#30e203', '#c0d3ff', '#d52cbc'],
     line: ['#FF6384', '#36A2EB', '#FFCE56', '#E7E9ED', '#71B37C'],
     // Add more or customize as needed
   };
 
-  if (params == "range"){
+  if (dataType == "range"){
     const datasetKeys = Object.keys(data[0]).filter(key => key.toLowerCase() !== 'year');
     const labels = Object.keys(data[0]).filter(key => key.toLowerCase() == 'year');
     const datasets = datasetKeys.map((key,idx) =>({
           label: key,
           data: data.map(d => parseFloat(d[key])),
-          backgroundColor: backgroundColors[chartType][idx],
-          borderColor: borderColors[chartType][idx],
+          backgroundColor: chartType == "pie"? backgroundColors[chartType]:backgroundColors[chartType][idx],
+          borderColor: chartType == "pie"? borderColors[chartType]:borderColors[chartType][idx],
           borderWidth: 1,
     }))
 
@@ -42,7 +42,7 @@ const generateChartDataset = (data, chartType,params) => {
   else{
     const entry = data[0];
     const labels = Object.keys(entry);
-    const dataPoints = Object.values(entry).map(value => parseFloat(value)); // Convert string to number  
+    const dataPoints = Object.values(entry).map(value => parseFloat(value)); // Convert string to number 
     const datasets =  [{
       label: 'Total', // Customize this label as needed
       backgroundColor: chartType == "pie"? backgroundColors[chartType]:backgroundColors[chartType][0],
@@ -50,7 +50,6 @@ const generateChartDataset = (data, chartType,params) => {
       data: dataPoints,
       borderWidth: 1
     }]
-    console.log(datasets)
     return {
       labels: labels,
       datasets: datasets
@@ -58,10 +57,10 @@ const generateChartDataset = (data, chartType,params) => {
   }
 };
 
-const ChartComponent = ({ values, type }) => {
+const ChartComponent = ({ values, dataType,chartType }) => {
   // Assuming 'data' is an array with items like: { year: 2020, value: 10 }
-  console.log(values,type, " inside chart")
-  const chartData = generateChartDataset(values, 'bar',type);
+  console.log(values,dataType, " inside chart")
+  const chartData = generateChartDataset(values, chartType,dataType);
 
   const chartOptions = {
     responsive: true,
@@ -75,7 +74,7 @@ const ChartComponent = ({ values, type }) => {
   };
 
   // Render the appropriate chart based on 'type'
-  switch ('bar') {
+  switch (chartType) {
     case 'bar':
       return <Bar data={chartData} options={chartOptions} className='graphWidthAdjuster'/>;
     case 'pie':

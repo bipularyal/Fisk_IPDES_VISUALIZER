@@ -12,7 +12,7 @@ function ChartArea() {
   return (
     <div className="chart-area">
       {data ? <div><h2>Visualized section: {data.section} </h2> <h2>Visualized data: {data.subSection}</h2></div> : <h2>This section will show the graph when data is available</h2>}
-      {data && data.values && <ChartComponent values={data.values} type={data.type}/>}
+      {data && data.values && <ChartComponent values={data.values} dataType={data.dataType} chartType={data.chartType}/>}
     </div>
   );
 }

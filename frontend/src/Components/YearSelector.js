@@ -14,6 +14,8 @@ function YearSelectorForm() {
   const [year, setYear] = useState('2010');
   const [detail, setDetail] = useState('');
   const { setData } = useContext(DataContext);
+  const chartOptions = ["bar","pie"]
+  const [chartType, setChartType] = useState(chartOptions[0]);
 
   useEffect(() => {
     // Update details/options when dataType changes
@@ -29,7 +31,8 @@ function YearSelectorForm() {
   const queryParams = new URLSearchParams({
     year,
     dataType,
-    detail
+    detail,
+    chartType
   }).toString();
 
   // The base URL for your GET request
@@ -56,6 +59,11 @@ function YearSelectorForm() {
         label="Details" 
         options={detailsOptions}
         onChange={(e) => setDetail(e.target.value)}
+        />
+        <FormSelector 
+        label="Chart Type" 
+        options={chartOptions}
+        onChange={(e) => setChartType(e.target.value)}
         />
       <button className="form-button" type="submit">Submit</button>
     </form>

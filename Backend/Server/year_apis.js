@@ -6,7 +6,7 @@ const db = require('./database'); // Adjust the path to where your database.js f
 
 // Endpoint to get data based on a range
 router.get('', (req, res) => {
-    const { year, dataType, detail } = req.query;
+    const { year, dataType, detail,chartType } = req.query;
 
     // Mock database query response
     const query = individualQueries[dataType][detail]
@@ -29,7 +29,7 @@ router.get('', (req, res) => {
       }
 
       console.log(rows)
-      res.json({ success: true, values: rows, type: "single", section: dataType, subSection:detail});
+      res.json({ success: true, values: rows, dataType: "single", section: dataType, subSection:detail,chartType:chartType});
     });
 
 });

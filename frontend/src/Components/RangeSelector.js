@@ -13,6 +13,8 @@ function RangeSelectorForm() {
   const [detail, setDetail] = useState('');
   const [detailsOptions, setDetailsOptions] = useState([]);
   const { setData } = useContext(DataContext);
+  const chartOptions = ["bar","line"]
+  const [chartType, setChartType] = useState(chartOptions[0]);
 
   useEffect(() => {
     // Update details/options when dataType changes
@@ -30,7 +32,8 @@ function RangeSelectorForm() {
     startYear,
     endYear,
     dataType,
-    detail
+    detail,
+    chartType
   }).toString();
 
   // The base URL for your GET request
@@ -65,6 +68,11 @@ function RangeSelectorForm() {
         options={detailsOptions} 
         onChange={(e) => setDetail(e.target.value)}
       />
+      <FormSelector 
+        label="Chart Type" 
+        options={chartOptions}
+        onChange={(e) => setChartType(e.target.value)}
+        />
       <button type="submit" className="form-button">Submit</button>
     </form>
   );
