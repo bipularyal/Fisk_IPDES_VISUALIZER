@@ -30,7 +30,7 @@ router.get('', (req, res) => {
       }
       console.log(rows)
       heading = `${dataType} --- ${detail}`
-      let type = Object.keys(rows[0]).length > 2? "range_single":"range_double"
+      let type = "range"
       res.json({ success: true, values: rows, type: type, label:heading});
     });
   });

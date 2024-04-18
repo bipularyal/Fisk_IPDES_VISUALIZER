@@ -22,7 +22,8 @@ const generateChartDataset = (data, chartType,params) => {
     line: 'rgba(75,192,192,1)',
     // Add more or customize as needed
   };
-  if (params != "year_single"){
+
+  if (params == "range"){
     const datasetKeys = Object.keys(data[0]).filter(key => key.toLowerCase() !== 'year');
     const labels = Object.keys(data[0]).filter(key => key.toLowerCase() == 'year');
     const datasets = datasetKeys.map(key =>({
@@ -32,23 +33,26 @@ const generateChartDataset = (data, chartType,params) => {
           borderColor: borderColors[chartType],
           borderWidth: 1,
     }))
+
     return {
       labels: data.map(d => d[labels]),
       datasets: datasets
     };
   }
   else{
-    const datasetKeys = Object.keys(data[0]).filter(key => key.toLowerCase() !== 'year');
-    const labels = Object.keys(data[0]).filter(key => key.toLowerCase() == 'year');
-    const datasets = datasetKeys.map(key =>({
-          label: key,
-          data: data.map(d => parseFloat(d[key])),
-          backgroundColor: backgroundColors[chartType],
-          borderColor: borderColors[chartType],
-          borderWidth: 1,
-    }))
+    const entry = data[0];
+    const labels = Object.keys(entry);
+    const dataPoints = Object.values(entry).map(value => parseFloat(value)); // Convert string to number  
+    const datasets =  [{
+      label: 'Total', // Customize this label as needed
+      backgroundColor: backgroundColors[chartType],
+      borderColor: borderColors[chartType],
+      data: dataPoints,
+      borderWidth: 1
+    }]
+    console.log(datasets)
     return {
-      labels: data.map(d => d[labels]),
+      labels: labels,
       datasets: datasets
     };
   }

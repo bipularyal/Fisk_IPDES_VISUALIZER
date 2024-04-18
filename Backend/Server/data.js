@@ -9,9 +9,9 @@ const individualQueries = {
     "Bacholers Completion Stats by Major": "SELECT total as 'value', major as 'key' from CompletionByMajor where year = ? and degreeType = \"Bachelor's degree\""
 },
   Expenses:{
-    "Expenses by Value":"SELECT expense_function as 'key' , reported_values as 'value' FROM Expenses WHERE year = ? AND expense_function NOT IN ('Total core expenses', 'Total Expenses');",
-    "Expenses by Percentage":"SELECT expense_function  as 'key', percent_of_total_core_expenses as 'value' FROM Expenses WHERE year = ? AND expense_function NOT IN ('Total core expenses', 'Total Expenses');",
-    "Expenses per FTE":"SELECT expense_function as 'key', core_expenses_per_fte_enrollment as 'value' FROM Expenses WHERE year = ? AND expense_function NOT IN ('Total core expenses', 'Total Expenses');",
+    "Expenses by Value":"SELECT expense_function as 'key' , reported_values as 'value' FROM Expenses WHERE year = ? AND expense_function NOT IN ('Total core expenses', 'Total expenses');",
+    "Expenses by Percentage":"SELECT expense_function  as 'key', percent_of_total_core_expenses as 'value' FROM Expenses WHERE year = ? AND expense_function NOT IN ('Total core expenses', 'Total expenses');",
+    "Expenses per FTE":"SELECT expense_function as 'key', core_expenses_per_fte_enrollment as 'value' FROM Expenses WHERE year = ? AND expense_function NOT IN ('Total core expenses', 'Total expenses');",
   },
   FallEnrollmentByRace:{
     "Enrollment by Race":"SELECT * FROM FallEnrollmentByRace WHERE year = ?"
@@ -25,7 +25,7 @@ const individualQueries = {
     "Graduation Count":"SELECT cohort AS 'Cohort', four_year_graduation_count AS 'Four Year Graduation Count', six_year_graduation_count AS 'Six Year Graduation Count', eightyearsgradcount AS 'Eight Year Graduation Count' FROM GraduationRateEightYears WHERE year = ?;"
   },
   GraduationRates:{
-    "Cohort to Completors":"SELECT total_cohort AS 'Total Cohort', totalcohorttogradcount AS 'Total Cohort to Grad Count' FROM GraduationRates WHERE year = ?;"
+    "Cohort to Completors":"SELECT total_cohort AS 'Total Cohort', totalcohorttogradcount AS 'Grad Count' FROM GraduationRates WHERE year = ?;"
   },
   Revenues:{
     "Revenue by Value": "SELECT revenue_source AS 'key', reported_values AS 'value' FROM Revenues WHERE year = ? AND revenue_source NOT IN ('Total core revenues', 'Total revenues');",

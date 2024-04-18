@@ -24,7 +24,10 @@ router.get('', (req, res) => {
         }
         rows = [values]
       }
-      const heading = "year_single"
+      if (rows.length > 0 && 'year' in rows[0]){
+        delete rows[0].year;
+      }
+      const heading = "single"
       console.log(rows)
       res.json({ success: true, values: rows, type: "year_single", label:heading});
     });
