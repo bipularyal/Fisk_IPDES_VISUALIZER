@@ -1,1 +1,1 @@
-This project is for Fisk University's enrollment data visualization.
+This is our Junior Seminar final project, Fisk IPEDS Data Visualizer. The Fisk IPEDS Data Visualizer is a web application designed to provide users with comprehensive access to datasets sourced from the Integrated Postsecondary Education Data System (IPEDS). It provides a comprehensive overview of the Fisk academic data such as enrollment in provided major of study, total financial aid to the student, % of graduated students in their respective field of study and so on. 
